@@ -1,5 +1,4 @@
 # %% import libraries
-import random
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
@@ -7,34 +6,30 @@ from sklearn.metrics import mean_squared_error, r2_score
 from combine_CPR_MSI import (
     combine_cpr_msi_from_orbits,
     xr_vectorized_height_interpolation,
-    get_orbit_files,
+    get_common_orbits,
+    get_common_orbits_date_range,
 )
 import matplotlib.pyplot as plt
 import xarray as xr
 import joblib
-import datetime
+from datetime import datetime
 
 # %% select orbit numbers
-# take the orbit numbers from the file (those are the orbits that have matching CPR and MSI data)
-with open("./data/matching_orbits_xmet.txt", "r") as file:
-    # Read all lines into a list
-    matching_orbits = [line.strip() for line in file]
-    matching_orbits.sort()
-
-# %% choose some orbits
-matching_orbit_file_paths = get_orbit_files(
-    matching_orbits,
-    base_path="/data/s6/L1/EarthCare/L1/MSI_NOM_1B/2025/01/30/",
+# common_orbits = get_common_orbits_date_range(
+#     ["CPR", "MSI", "XMET"],
+#     date_range=["2025/01/30", "2025/02/02"],
+# )
+common_orbits = get_common_orbits(
+    ["CPR", "MSI", "XMET"],
+    date_list=["2025/01/30"],
 )
-orbit_numbers = [f[-9:-3] for f in matching_orbit_file_paths]
+print("total number of orbits: ", len(common_orbits))
 
-# random_int = random.randint(1, len(matching_orbits) - 1)
-# orbit_numbers = matching_orbits[random_int : random_int + 1]
-# orbit_numbers = ["03890F"]
-
-print(orbit_numbers)
 # %% load the data to xarray datasets
-xds, ds_xmet = combine_cpr_msi_from_orbits(orbit_numbers=orbit_numbers, get_xmet=True)
+start = datetime.now()
+# common_orbits = ["03890F"]
+xds, ds_xmet = combine_cpr_msi_from_orbits(orbit_numbers=common_orbits, get_xmet=True)
+print(datetime.now() - start)
 
 # %% interpolation to a uniform height grid
 height_grid = np.arange(1e3, 15e3, 100)
@@ -88,8 +83,8 @@ regressor = RandomForestRegressor(
     criterion="squared_error",
 )
 regressor.fit(X_train, y_train)
-date = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-joblib.dump(regressor, f"./data/my_rf_regressor{date}.joblib")
+now = datetime.now().strftime("%Y%m%d%H%M%S")
+joblib.dump(regressor, f"./data/my_rf_regressor{now}.joblib")
 
 # %% Predict
 y_pred = regressor.predict(X_test)

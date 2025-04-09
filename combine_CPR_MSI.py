@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import griddata
 from scipy.spatial.distance import cdist
+from datetime import date, datetime, timedelta
 
 
 # %%
@@ -54,26 +55,75 @@ def get_aligned_xmet(
 # %%
 def get_all_orbit_numbers_per_instrument(
     inst: str,
+    date: str = "",  # format: "YYYY/MM/DD"
     base_path: str = "/data/s6/L1/EarthCare/",
+    get_full_path: bool = False,
 ) -> list:
     """
-    Get all orbit numbers for the specified instrument (CPR or MSI).
+    Get all orbit numbers for the specified instrument (CPR, MSI, or XMET).
     """
     # Define the base directory depending on the instrument
     if inst == "CPR":
-        base_path = os.path.join(base_path, "L1/CPR_NOM_1B")
+        base_path = os.path.join(base_path, "L1/CPR_NOM_1B", date)
     elif inst == "MSI":
-        base_path = os.path.join(base_path, "L1/MSI_NOM_1B")
+        base_path = os.path.join(base_path, "L1/MSI_NOM_1B", date)
     elif inst == "XMET":
-        base_path = os.path.join(base_path, "Meteo_Supporting_Files/AUX_MET_1D")
+        base_path = os.path.join(base_path, "Meteo_Supporting_Files/AUX_MET_1D", date)
 
     # Walk through the directory and collect orbit numbers
     orbit_numbers = []
-    for _, _, files in os.walk(base_path):
+    paths = []
+    for root, _, files in os.walk(base_path):
         for file in files:
             if ".h5" in file:
                 orbit_numbers.append(file[-9:-3])
-    return orbit_numbers
+                paths.append(os.path.join(root, file))
+
+    if get_full_path:
+        return paths
+    else:
+        return orbit_numbers
+
+
+# %% search common orbit numbers
+def get_common_orbits(
+    instruments: list[str],
+    date_list: list[str] = "",  # format: ["YYYY/MM/DD"]
+) -> list:
+    """
+    Get the common orbit numbers for the given instruments and date (format: "YYYY/MM/DD").
+    If the date is not given, return all available common orbit numbers.
+    """
+    common_orbits = []
+    for date in date_list:
+
+        # Get all orbit numbers for each instrument
+        orbit_numbers = [get_all_orbit_numbers_per_instrument(inst, date=date) for inst in instruments]
+
+        # Find elements that exist in all lists
+        common_orbits_per_date = set(orbit_numbers[0]).intersection(*orbit_numbers[1:])
+
+        common_orbits.extend(common_orbits_per_date)
+    return list(common_orbits)
+
+
+# %% search common orbit numbers given a date range
+def get_common_orbits_date_range(
+    instruments: list[str],
+    date_range: list[str],  # format: ["YYYY/MM/DD", "YYYY/MM/DD"]
+) -> list:
+    """
+    Get the common orbit numbers for the given instruments and date range.
+    """
+    # Convert date strings to datetime objects
+    start_date = datetime.strptime(date_range[0], "%Y/%m/%d")
+    end_date = datetime.strptime(date_range[1], "%Y/%m/%d")
+
+    # Generate a list of dates within the range
+    date_list = [(start_date + timedelta(days=i)).strftime("%Y/%m/%d") for i in range((end_date - start_date).days + 1)]
+
+    # Get common orbits for each date in the range
+    return get_common_orbits(instruments=instruments, date_list=date_list)
 
 
 # %%
@@ -129,23 +179,13 @@ def read_cpr_msi(
     """
     if len(orbit_files) == 2:
         if "MSI" in orbit_files[0] and "CPR" in orbit_files[1]:
-            xds_msi = (
-                read_msi(orbit_files[0], msi_band)
-                if msi_band is not None
-                else read_msi(orbit_files[0])
-            )
+            xds_msi = read_msi(orbit_files[0], msi_band) if msi_band is not None else read_msi(orbit_files[0])
             xds_cpr = read_cpr(orbit_files[1])
         elif "MSI" in orbit_files[1] and "CPR" in orbit_files[0]:
-            xds_msi = (
-                read_msi(orbit_files[1], msi_band)
-                if msi_band is not None
-                else read_msi(orbit_files[0])
-            )
+            xds_msi = read_msi(orbit_files[1], msi_band) if msi_band is not None else read_msi(orbit_files[0])
             xds_cpr = read_cpr(orbit_files[0])
         else:
-            raise ValueError(
-                "The file pairs do not match the expected format (one CPR one MSI)."
-            )
+            raise ValueError("The file pairs do not match the expected format (one CPR one MSI).")
     else:
         raise ValueError("Please inspect the orbit files")
     return xds_cpr, xds_msi
@@ -159,10 +199,7 @@ def merge_colocated(xds_cpr, xds_msi):
     # Find the closest MSI pixel (across_track) to match CPR profile
     pixel_number = 266
     xds_msi_selected = xds_msi.isel(across_track=pixel_number).sel(
-        time=xds_cpr.profileTime
-        + np.timedelta64(
-            640, "ms"
-        ),  # shift the lat/lon match in samppling time manually
+        time=xds_cpr.profileTime + np.timedelta64(640, "ms"),  # shift the lat/lon match in samppling time manually
         method="nearest",
     )
     # Merge the two datasets
@@ -188,14 +225,10 @@ def combine_cpr_msi_from_orbits(
         # Search for matching file pairs
         matching_file_pairs = get_orbit_files(orbit_number)
         if len(matching_file_pairs) == 3:
-            matching_file_pairs = [
-                file for file in matching_file_pairs if "AUX_MET_1D" not in file
-            ]
+            matching_file_pairs = [file for file in matching_file_pairs if "AUX_MET_1D" not in file]
 
         if len(matching_file_pairs) != 2:
-            raise ValueError(
-                f"Expected 2 files for orbit number {orbit_number}, but found {len(matching_file_pairs)}."
-            )
+            raise ValueError(f"Expected 2 files for orbit number {orbit_number}, but found {len(matching_file_pairs)}.")
         xds_cpr, xds_msi = read_cpr_msi(matching_file_pairs, msi_band=[4, 5, 6])
         xds = merge_colocated(xds_cpr, xds_msi).set_xindex(["latitude", "longitude"])
         # Append the datasets to the lists
@@ -208,11 +241,8 @@ def combine_cpr_msi_from_orbits(
             ds_xmet_list.append(ds_xmet)
 
     xds_combined = xr.concat(xds_list, dim="nray")
-    xds_combined["dBZ"] = xds_combined["radarReflectivityFactor"].pipe(
-        lambda x: 10 * np.log10(x)
-    )  # Convert to dBZ
+    xds_combined["dBZ"] = xds_combined["radarReflectivityFactor"].pipe(lambda x: 10 * np.log10(x))  # Convert to dBZ
     xds_combined["dBZ"].attrs = {"long_name": "dBZ", "units": "dBZ"}
-    xds_combined = xds_combined
 
     if get_xmet:
         ds_xmet_combined = xr.concat(ds_xmet_list, dim="horizontal_grid")
@@ -369,10 +399,7 @@ if __name__ == "__main__":
     # %%
     slice_time = slice(None, None, 200)
     xds_msi_selected = xds_msi.isel(across_track=slice(266, 268)).sel(
-        time=xds_cpr.isel(nray=slice_time).profileTime
-        + np.timedelta64(
-            640, "ms"
-        ),  # shift the lat/lon match in samppling time manually
+        time=xds_cpr.isel(nray=slice_time).profileTime + np.timedelta64(640, "ms"),  # shift the lat/lon match in samppling time manually
         method="nearest",
     )
     plt.plot(
