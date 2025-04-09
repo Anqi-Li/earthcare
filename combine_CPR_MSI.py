@@ -108,8 +108,7 @@ def get_common_orbits(
 
 
 # %% search common orbit numbers given a date range
-def get_common_orbits_date_range(
-    instruments: list[str],
+def get_date_list_from_range(
     date_range: list[str],  # format: ["YYYY/MM/DD", "YYYY/MM/DD"]
 ) -> list:
     """
@@ -123,7 +122,7 @@ def get_common_orbits_date_range(
     date_list = [(start_date + timedelta(days=i)).strftime("%Y/%m/%d") for i in range((end_date - start_date).days + 1)]
 
     # Get common orbits for each date in the range
-    return get_common_orbits(instruments=instruments, date_list=date_list)
+    return date_list
 
 
 # %%
