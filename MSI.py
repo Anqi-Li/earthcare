@@ -8,7 +8,7 @@ import cartopy.feature as cfeature
 # %%
 
 
-def read_msi(full_path, band=5):
+def read_msi(full_path, band=[4, 5, 6]):
 
     # MSI L1 product definition document
     # Table 4-1: Spectral bands of MSI
@@ -30,7 +30,7 @@ def read_msi(full_path, band=5):
     )
     xds = xds.set_xindex(["time"])
 
-    if band in [4, 5, 6, [4,5,6], [4,5], [5,6], [4,6]]:
+    if band in [4, 5, 6, [4, 5, 6], [4, 5], [5, 6], [4, 6]]:
         # TIR bands' unit are in Kelvin (for easy visualization)
         xds["pixel_values"].attrs = {
             "long_name": "Brightness Temperature",
