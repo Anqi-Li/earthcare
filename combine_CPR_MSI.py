@@ -9,7 +9,6 @@ from scipy.interpolate import griddata
 from scipy.spatial.distance import cdist
 from datetime import datetime, timedelta
 
-
 # %%
 def get_xmet_ds(
     orbit_number: str,
@@ -103,7 +102,7 @@ def get_all_orbit_numbers_per_instrument(
 # %% search common orbit numbers
 def get_common_orbits(
     instruments: list[str],
-    date_list: list[str] = "",  # format: ["YYYY/MM/DD"]
+    date_list: list[str] = [""],  # format: ["YYYY/MM/DD"]
 ) -> list:
     """
     Get the common orbit numbers for the given instruments and date (format: "YYYY/MM/DD").
