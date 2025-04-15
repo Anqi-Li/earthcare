@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import griddata
 from scipy.spatial.distance import cdist
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 
 # %%
@@ -42,7 +42,7 @@ def get_xmet_ds(
 # %%
 def get_aligned_xmet(
     orbit_numbers: list[str],
-    xds: xr.Dataset,
+    xds: xr.Dataset = None,
 ) -> xr.Dataset:
     """
     Get the XMET dataset for a list of orbit numbers and align it with the CPR dataset.
@@ -57,6 +57,12 @@ def get_aligned_xmet(
         ds = get_xmet_ds(orbit_number)
         ds_list.append(ds)
     ds_combined = xr.concat(ds_list, dim="horizontal_grid")
+
+    if xds is None:
+        raise NotImplementedError(
+            "Function to be implemeted in the future. Please provide the CPR dataset (xds) to align the XMET dataset."
+        )
+
     ds_combined_aligned = align_xmet_horizontal_grid(ds_combined, xds)
     return ds_combined_aligned
 
@@ -107,10 +113,7 @@ def get_common_orbits(
     for date in date_list:
 
         # Get all orbit numbers for each instrument
-        orbit_numbers = [
-            get_all_orbit_numbers_per_instrument(inst, date=date)
-            for inst in instruments
-        ]
+        orbit_numbers = [get_all_orbit_numbers_per_instrument(inst, date=date) for inst in instruments]
 
         # Find elements that exist in all lists
         common_orbits_per_date = set(orbit_numbers[0]).intersection(*orbit_numbers[1:])
@@ -131,10 +134,7 @@ def get_date_list_from_range(
     end_date = datetime.strptime(date_range[1], "%Y/%m/%d")
 
     # Generate a list of dates within the range
-    date_list = [
-        (start_date + timedelta(days=i)).strftime("%Y/%m/%d")
-        for i in range((end_date - start_date).days + 1)
-    ]
+    date_list = [(start_date + timedelta(days=i)).strftime("%Y/%m/%d") for i in range((end_date - start_date).days + 1)]
 
     # Get common orbits for each date in the range
     return date_list
@@ -164,9 +164,7 @@ def get_orbit_files(
         elif inst == "MSI":
             base_path = os.path.join(base_path, "L1/MSI_NOM_1B", date)
         elif inst == "XMET":
-            base_path = os.path.join(
-                base_path, "Meteo_Supporting_Files/AUX_MET_1D", date
-            )
+            base_path = os.path.join(base_path, "Meteo_Supporting_Files/AUX_MET_1D", date)
 
     orbit_files = []
     for root, _, files in os.walk(base_path):
@@ -202,23 +200,13 @@ def read_cpr_msi(
     """
     if len(orbit_files) == 2:
         if "MSI" in orbit_files[0] and "CPR" in orbit_files[1]:
-            xds_msi = (
-                read_msi(orbit_files[0], msi_band)
-                if msi_band is not None
-                else read_msi(orbit_files[0])
-            )
+            xds_msi = read_msi(orbit_files[0], msi_band) if msi_band is not None else read_msi(orbit_files[0])
             xds_cpr = read_cpr(orbit_files[1])
         elif "MSI" in orbit_files[1] and "CPR" in orbit_files[0]:
-            xds_msi = (
-                read_msi(orbit_files[1], msi_band)
-                if msi_band is not None
-                else read_msi(orbit_files[0])
-            )
+            xds_msi = read_msi(orbit_files[1], msi_band) if msi_band is not None else read_msi(orbit_files[0])
             xds_cpr = read_cpr(orbit_files[0])
         else:
-            raise ValueError(
-                "The file pairs do not match the expected format (one CPR one MSI)."
-            )
+            raise ValueError("The file pairs do not match the expected format (one CPR one MSI).")
     else:
         raise ValueError("Please inspect the orbit files")
     return xds_cpr, xds_msi
@@ -232,10 +220,7 @@ def merge_colocated(xds_cpr, xds_msi):
     # Find the closest MSI pixel (across_track) to match CPR profile
     pixel_number = 266
     xds_msi_selected = xds_msi.isel(across_track=pixel_number).sel(
-        time=xds_cpr.profileTime
-        + np.timedelta64(
-            640, "ms"
-        ),  # shift the lat/lon match in samppling time manually
+        time=xds_cpr.profileTime + np.timedelta64(640, "ms"),  # shift the lat/lon match in samppling time manually
         method="nearest",
     )
     # Merge the two datasets
@@ -264,14 +249,10 @@ def combine_cpr_msi_from_orbits(
         # Search for matching file pairs
         matching_file_pairs = get_orbit_files(orbit_number)
         if len(matching_file_pairs) == 3:
-            matching_file_pairs = [
-                file for file in matching_file_pairs if "AUX_MET_1D" not in file
-            ]
+            matching_file_pairs = [file for file in matching_file_pairs if "AUX_MET_1D" not in file]
 
         if len(matching_file_pairs) != 2:
-            raise ValueError(
-                f"Expected 2 files for orbit number {orbit_number}, but found {len(matching_file_pairs)}."
-            )
+            raise ValueError(f"Expected 2 files for orbit number {orbit_number}, but found {len(matching_file_pairs)}.")
         xds_cpr, xds_msi = read_cpr_msi(matching_file_pairs, msi_band=[4, 5, 6])
         xds = merge_colocated(xds_cpr, xds_msi).set_xindex(["latitude", "longitude"])
         # Append the datasets to the lists
@@ -284,9 +265,7 @@ def combine_cpr_msi_from_orbits(
             ds_xmet_list.append(ds_xmet)
 
     xds_combined = xr.concat(xds_list, dim="nray")
-    xds_combined["dBZ"] = xds_combined["radarReflectivityFactor"].pipe(
-        lambda x: 10 * np.log10(x)
-    )  # Convert to dBZ
+    xds_combined["dBZ"] = xds_combined["radarReflectivityFactor"].pipe(lambda x: 10 * np.log10(x))  # Convert to dBZ
     xds_combined["dBZ"].attrs = {"long_name": "dBZ", "units": "dBZ"}
 
     if get_xmet:
@@ -494,10 +473,7 @@ if __name__ == "__main__":
     # %%
     slice_time = slice(None, None, 200)
     xds_msi_selected = xds_msi.isel(across_track=slice(266, 268)).sel(
-        time=xds_cpr.isel(nray=slice_time).profileTime
-        + np.timedelta64(
-            640, "ms"
-        ),  # shift the lat/lon match in samppling time manually
+        time=xds_cpr.isel(nray=slice_time).profileTime + np.timedelta64(640, "ms"),  # shift the lat/lon match in samppling time manually
         method="nearest",
     )
     plt.plot(
