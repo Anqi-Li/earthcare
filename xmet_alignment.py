@@ -1,14 +1,14 @@
 # %%
-from combine_CPR_MSI import (
-    get_aligned_xmet,
+from search_orbit_files import (
     get_common_orbits,
     get_orbit_files,
     get_all_orbit_numbers_per_instrument,
 )
-from CPR import read_cpr
+from combine_CPR_MSI import read_xmet, align_xmet_horizontal_grid, read_cpr
 import os
 import xarray as xr
 
+REWRITE = False  # Set to True to overwrite existing files
 # %%
 common_orbits = get_common_orbits(["CPR", "MSI", "XMET"])
 common_orbit_files = get_orbit_files(common_orbits, "XMET")
@@ -16,6 +16,9 @@ base_dir = "/data/s6/L1/EarthCare/Meteo_Supporting_Files/AUX_MET_1D_aligned_CPR"
 variables_to_save = ["temperature"]
 
 # %%
+num_of_files_existed = 0
+num_of_files_created = 0
+
 for i in range(len(common_orbit_files)):
     _, _, _, _, _, _, _, y, m, d, filename, _ = common_orbit_files[i].split("/")
     save_dir = os.path.join(base_dir, y, m, d, filename)
@@ -25,12 +28,10 @@ for i in range(len(common_orbit_files)):
 
     # Check if the file already exists
     if not os.path.exists(save_file_path):
-        # Get the aligned XMET data
-        xmet = get_aligned_xmet(
-            orbit_number,
-            read_cpr(get_orbit_files(orbit_number, "CPR")[0]).set_xindex(
-                ["latitude", "longitude"]
-            ),
+
+        xmet = align_xmet_horizontal_grid(
+            read_xmet(orbit_number=orbit_number),
+            read_cpr(orbit_number=orbit_number).set_xindex(["latitude", "longitude"]),
         )
         # Ensure the save directory exists
         os.makedirs(save_dir, exist_ok=True)
@@ -41,15 +42,26 @@ for i in range(len(common_orbit_files)):
             mode="w",
         )
         print(f"File saved to {save_file_path}")
+        num_of_files_created += 1
     else:
+        if REWRITE:
+            NotImplementedError(
+                f"File already exists: {save_file_path}, but REWRITE is set to True."
+            )
         print("File already exists, skip.")
+        num_of_files_existed += 1
+
+
+print(f"Number of files created: {num_of_files_created}")
+print(f"Number of files existed: {num_of_files_existed}")
+
 # %%
 if __name__ == "__main__":
 
-    #%%
+    # %%
     base_dir = "/data/s6/L1/EarthCare/Meteo_Supporting_Files/AUX_MET_1D_aligned_CPR"
     orbits = get_all_orbit_numbers_per_instrument(base_path=base_dir)
     len(orbits)
-# %%
+    # %%
     xr.open_dataset(get_orbit_files(orbits[0], base_path=base_dir)[0])
 # %%
