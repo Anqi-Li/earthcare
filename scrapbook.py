@@ -1,39 +1,93 @@
-#%%
+# %%
 from list_groups_h5 import list_groups
 import zipfile
 import os
 import xarray as xr
 import numpy as np
-from combine_CPR_MSI import combine_cpr_msi_from_orbits, xr_vectorized_height_interpolation
+from functions.combine_CPR_MSI import (
+    combine_cpr_msi_from_orbits,
+    xr_vectorized_height_interpolation,
+    get_xmet_ds,
+)
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import cdist
+from datetime import datetime
+import joblib
 
-#%%
-filename = "ECA_EXAA_AUX_MET_1D_20250202T234643Z_20250203T002104Z_03890F"
-orbit_number = filename[-6:]
-
-#%%
-path_to_zip_file = f'./data/{filename}.ZIP'
-with zipfile.ZipFile(path_to_zip_file, 'r') as zip_ref:
-    zip_ref.extractall("./data")
 
 # %%
-list_groups(f"./data/{filename}.h5")
-# %%
-ds = xr.open_dataset(f"./data/{filename}.h5", group="ScienceData",)
-ds = ds.set_coords(["latitude", "longitude", "geometrical_height"])
-ds = ds.set_xindex(["latitude", "longitude"])
+orbit_number = "03890F"
 
 # %% select the closest horizontal grid point to the cpr & msi data
-xds = combine_cpr_msi_from_orbits(orbit_numbers=[orbit_number])
+xds = combine_cpr_msi_from_orbits(orbit_numbers=[orbit_number], get_xmet=False)
+ds = get_xmet_ds(orbit_number=orbit_number)
 
+xds = xds.reset_index(['latitude', 'longitude']).reset_coords(['latitude', 'longitude'])
+ds = ds.reset_index(['latitude', 'longitude']).reset_coords(['latitude', 'longitude'])
+
+# %%
 # find the closest horizontal grid point to the xds.nray (latitude, longitude)
-dist = cdist(np.array([*ds.horizontal_grid.values]), np.array([*xds.nray.values]), "chebyshev",)
+dist = cdist(
+    np.array([*ds.horizontal_grid.values]),
+    np.array([*xds.nray.values]),
+    "chebyshev",
+)
 jminflat = dist.argmin(axis=0)
 ds_xmet = ds.isel(horizontal_grid=jminflat)
 
-# %%
-height_grid = np.arange(1e3,15e3, 100)
-# xr_vectorized_height_interpolation(ds_xmet, "geometrical_height", "temperature", height_grid, "height", "height_grid",)
-xr_vectorized_height_interpolation(ds=xds, height_name='binHeight', variable_name='dBZ', height_grid=height_grid, height_dim='nbin', new_height_dim='height_grid',)
 
+# %%
+# function to find the shortest distance to a hosrizontal grid index of an array from a list of coordinates
+def find_closest_horizontal_grid_index(grid_lat_lon, query_lat_lon):
+    """
+    Find the closest horizontal grid index to a given latitude and longitude.
+    Parameters
+    ----------
+    grid_lat_lon : array-like
+        The latitude and longitude of the horizontal grid points.
+    query_lat_lon : array-like
+        The latitude and longitude of the query points.
+    Returns
+    -------
+    array-like
+        The indices of the closest horizontal grid points.
+    """
+    dist = cdist(
+        grid_lat_lon,
+        query_lat_lon,
+        "chebyshev",
+    )
+    jminflat = dist.argmin(axis=0)
+    return jminflat
+
+start = datetime.now()
+xr.apply_ufunc(
+    find_closest_horizontal_grid_index,
+    # np.array([*ds["horizontal_grid"].values]),
+    # np.array([*xds["nray"].values]),
+    ds[['latitude', 'longitude']].to_array().values.T,
+    xds[['latitude', 'longitude']].to_array().values.T,
+    exclude_dims=set(('horizontal_grid',)),
+    input_core_dims=[["horizontal_grid"], ["nray"]],
+    output_core_dims=[["nray"]],
+    vectorize=True,
+    dask="parallelized",
+    output_dtypes=[np.int64],
+)
+print(datetime.now() - start)
+
+#%%
+start = datetime.now()
+find_closest_horizontal_grid_index(
+    # np.array([*ds["horizontal_grid"].values]),
+    # np.array([*xds["nray"].values]),
+    ds[['latitude', 'longitude']].to_array().values.T,
+    xds[['latitude', 'longitude']].to_array().values.T,
+)
+print(datetime.now() - start)
+
+#%%
+start = datetime.now()
+ds_T_unstack = ds.temperature.unstack(dim="horizontal_grid")
+print(datetime.now() - start)
+# %%

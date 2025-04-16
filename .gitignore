@@ -1,5 +1,7 @@
 data/
 figures/
+scrapbook.py
+notebooks/
 .conda/
 __pycache__/
 
