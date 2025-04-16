@@ -1,9 +1,9 @@
-#%%
-from combine_CPR_MSI import (
+# %%
+from functions.combine_CPR_MSI import (
     combine_cpr_msi_from_orbits,
     package_ml_xy,
-    get_common_orbits
 )
+from functions.search_orbit_files import get_common_orbits
 from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 import xarray as xr
@@ -11,14 +11,14 @@ import joblib
 from datetime import datetime
 import numpy as np
 
-#%%
+# %%
 common_orbits = get_common_orbits(
     ["CPR", "MSI", "XMET"],
-    date_list=['2025/03/01'],
+    date_list=["2025/03/01"],
 )
 len(common_orbits)
 # %%
-orbit_numbers=common_orbits[2:3]
+orbit_numbers = common_orbits[2:3]
 xds, ds_xmet = combine_cpr_msi_from_orbits(
     orbit_numbers=orbit_numbers,
     get_xmet=True,
@@ -30,7 +30,7 @@ X_test, y_test = package_ml_xy(
     height_grid=np.arange(1e3, 15e3, 100),
 )
 # %% load the fitted model
-regressor = joblib.load('./data/my_rf_regressor_20250410215809.joblib')
+regressor = joblib.load("./data/my_rf_regressor_20250410215809.joblib")
 
 # %% Predict
 y_pred = regressor.predict(X_test)

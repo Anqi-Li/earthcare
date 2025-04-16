@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import griddata
 from scipy.spatial.distance import cdist
-from search_orbit_files import get_orbit_files, get_all_orbit_numbers_per_instrument
+from functions.search_orbit_files import get_orbit_files, get_all_orbit_numbers_per_instrument
 
 
 def read_xmet(
@@ -401,7 +401,7 @@ if __name__ == "__main__":
     plt.show()
 
     # %%
-    from combine_CPR_MSI import combine_cpr_msi_from_orbits
+    from functions.combine_CPR_MSI import combine_cpr_msi_from_orbits
 
     orbit_number = "03842C"
     xds, ds_xmet = combine_cpr_msi_from_orbits(orbit_number, get_xmet=True)

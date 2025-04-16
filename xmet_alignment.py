@@ -1,10 +1,10 @@
 # %%
-from search_orbit_files import (
+from functions.search_orbit_files import (
     get_common_orbits,
     get_orbit_files,
     get_all_orbit_numbers_per_instrument,
 )
-from combine_CPR_MSI import read_xmet, align_xmet_horizontal_grid, read_cpr
+from functions.combine_CPR_MSI import read_xmet, align_xmet_horizontal_grid, read_cpr
 import os
 import xarray as xr
 
