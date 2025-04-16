@@ -51,3 +51,5 @@ if __name__ == "__main__":
     orbits = get_all_orbit_numbers_per_instrument(base_path=base_dir)
     len(orbits)
 # %%
+    xr.open_dataset(get_orbit_files(orbits[0], base_path=base_dir)[0])
+# %%

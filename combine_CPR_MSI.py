@@ -172,6 +172,8 @@ def get_orbit_files(
             base_path = os.path.join(base_path, "L1/MSI_NOM_1B", date)
         elif inst == "XMET":
             base_path = os.path.join(base_path, "Meteo_Supporting_Files/AUX_MET_1D", date)
+    else:
+        base_path = os.path.join(base_path, date)
 
     if isinstance(orbit_numbers, str):
         orbit_numbers = [orbit_numbers]
@@ -179,7 +181,7 @@ def get_orbit_files(
     orbit_files = []
     for root, _, files in os.walk(base_path):
         for file in files:
-            if any(orbit_number + ".h5" in file for orbit_number in orbit_numbers):
+            if any(orbit_number + ".h5" in file or orbit_number + ".nc" in file for orbit_number in orbit_numbers):
                 orbit_files.append(os.path.join(root, file))
             
     return orbit_files
