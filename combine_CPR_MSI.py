@@ -40,7 +40,7 @@ def get_xmet_ds(
 
 # %%
 def get_aligned_xmet(
-    orbit_numbers: list[str],
+    orbit_numbers: list[str]|str,
     xds: xr.Dataset = None,
 ) -> xr.Dataset:
     """
@@ -51,6 +51,10 @@ def get_aligned_xmet(
         xds: xarray.Dataset
             The CPR dataset.
     """
+    if isinstance(orbit_numbers, str):
+        orbit_numbers = [orbit_numbers]
+    # Get the XMET datasets for each orbit number
+    # and combine them into a single dataset
     ds_list = []
     for orbit_number in orbit_numbers:
         ds = get_xmet_ds(orbit_number)
@@ -68,7 +72,7 @@ def get_aligned_xmet(
 
 # %%
 def get_all_orbit_numbers_per_instrument(
-    inst: str,
+    inst: str = None,
     date: str = "",  # format: "YYYY/MM/DD"
     base_path: str = "/data/s6/L1/EarthCare/",
     get_full_path: bool = False,
@@ -76,20 +80,24 @@ def get_all_orbit_numbers_per_instrument(
     """
     Get all orbit numbers for the specified instrument (CPR, MSI, or XMET).
     """
-    # Define the base directory depending on the instrument
-    if inst == "CPR":
-        base_path = os.path.join(base_path, "L1/CPR_NOM_1B", date)
-    elif inst == "MSI":
-        base_path = os.path.join(base_path, "L1/MSI_NOM_1B", date)
-    elif inst == "XMET":
-        base_path = os.path.join(base_path, "Meteo_Supporting_Files/AUX_MET_1D", date)
+
+    if inst is not None:
+        # Define the base directory depending on the instrument
+        if inst == "CPR":
+            base_path = os.path.join(base_path, "L1/CPR_NOM_1B", date)
+        elif inst == "MSI":
+            base_path = os.path.join(base_path, "L1/MSI_NOM_1B", date)
+        elif inst == "XMET":
+            base_path = os.path.join(base_path, "Meteo_Supporting_Files/AUX_MET_1D", date)
+    else:
+        base_path = os.path.join(base_path, date)
 
     # Walk through the directory and collect orbit numbers
     orbit_numbers = []
     paths = []
     for root, _, files in os.walk(base_path):
         for file in files:
-            if ".h5" in file:
+            if ".h5" in file or '.nc' in file:
                 orbit_numbers.append(file[-9:-3])
                 paths.append(os.path.join(root, file))
 
@@ -165,15 +173,15 @@ def get_orbit_files(
         elif inst == "XMET":
             base_path = os.path.join(base_path, "Meteo_Supporting_Files/AUX_MET_1D", date)
 
+    if isinstance(orbit_numbers, str):
+        orbit_numbers = [orbit_numbers]
+
     orbit_files = []
     for root, _, files in os.walk(base_path):
         for file in files:
-            if isinstance(orbit_numbers, list):
-                if any(orbit_number + ".h5" in file for orbit_number in orbit_numbers):
-                    orbit_files.append(os.path.join(root, file))
-            elif isinstance(orbit_numbers, str):
-                if orbit_numbers + ".h5" in file:
-                    orbit_files.append(os.path.join(root, file))
+            if any(orbit_number + ".h5" in file for orbit_number in orbit_numbers):
+                orbit_files.append(os.path.join(root, file))
+            
     return orbit_files
 
 
