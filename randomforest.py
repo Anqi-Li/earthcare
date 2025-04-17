@@ -1,7 +1,7 @@
 # %% import libraries
 from sklearn.ensemble import RandomForestRegressor
 from functions.combine_CPR_MSI import (
-    combine_cpr_msi_from_orbits,
+    get_cpr_msi_from_orbits,
     package_ml_xy,
 )
 from functions.search_orbit_files import (
@@ -28,8 +28,8 @@ print("total number of orbits: ", len(common_orbits))
 print("Loading data...")
 start = datetime.now()
 orbit_numbers = common_orbits
-xds, ds_xmet = combine_cpr_msi_from_orbits(orbit_numbers=orbit_numbers, get_xmet=True)
-# xds = combine_cpr_msi_from_orbits(orbit_numbers=orbit_numbers, get_xmet=False)
+xds, ds_xmet = get_cpr_msi_from_orbits(orbit_numbers=orbit_numbers, get_xmet=True)
+# xds = get_cpr_msi_from_orbits(orbit_numbers=orbit_numbers, get_xmet=False)
 print("Load xarray data", datetime.now() - start)
 
 # %%

@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, timedelta
 
+
 # %%
 def get_all_orbit_numbers_per_instrument(
     inst: str = None,
@@ -19,7 +20,13 @@ def get_all_orbit_numbers_per_instrument(
         elif inst == "MSI":
             base_path = os.path.join(base_path, "L1/MSI_NOM_1B", date)
         elif inst == "XMET":
-            base_path = os.path.join(base_path, "Meteo_Supporting_Files/AUX_MET_1D", date)
+            base_path = os.path.join(
+                base_path, "Meteo_Supporting_Files/AUX_MET_1D", date
+            )
+        elif inst == "XMET_aligned":
+            base_path = os.path.join(
+                base_path, "Meteo_Supporting_Files/AUX_MET_1D_aligned_CPR", date
+            )
     else:
         base_path = os.path.join(base_path, date)
 
@@ -28,7 +35,7 @@ def get_all_orbit_numbers_per_instrument(
     paths = []
     for root, _, files in os.walk(base_path):
         for file in files:
-            if ".h5" in file or '.nc' in file:
+            if ".h5" in file or ".nc" in file:
                 orbit_numbers.append(file[-9:-3])
                 paths.append(os.path.join(root, file))
 
@@ -42,16 +49,23 @@ def get_all_orbit_numbers_per_instrument(
 def get_common_orbits(
     instruments: list[str],
     date_list: list[str] = [""],  # format: ["YYYY/MM/DD"]
+    date_range: list[str] = None,  # format: ["YYYY/MM/DD", "YYYY/MM/DD"]
 ) -> list:
     """
     Get the common orbit numbers for the given instruments and date (format: "YYYY/MM/DD").
     If the date is not given, return all available common orbit numbers.
     """
+    if date_range is not None:
+        date_list = get_date_list_from_range(date_range=date_range)
+
     common_orbits = []
     for date in date_list:
 
         # Get all orbit numbers for each instrument
-        orbit_numbers = [get_all_orbit_numbers_per_instrument(inst, date=date) for inst in instruments]
+        orbit_numbers = [
+            get_all_orbit_numbers_per_instrument(inst, date=date)
+            for inst in instruments
+        ]
 
         # Find elements that exist in all lists
         common_orbits_per_date = set(orbit_numbers[0]).intersection(*orbit_numbers[1:])
@@ -72,7 +86,10 @@ def get_date_list_from_range(
     end_date = datetime.strptime(date_range[1], "%Y/%m/%d")
 
     # Generate a list of dates within the range
-    date_list = [(start_date + timedelta(days=i)).strftime("%Y/%m/%d") for i in range((end_date - start_date).days + 1)]
+    date_list = [
+        (start_date + timedelta(days=i)).strftime("%Y/%m/%d")
+        for i in range((end_date - start_date).days + 1)
+    ]
 
     # Get common orbits for each date in the range
     return date_list
@@ -102,7 +119,9 @@ def get_orbit_files(
         elif inst == "MSI":
             base_path = os.path.join(base_path, "L1/MSI_NOM_1B", date)
         elif inst == "XMET":
-            base_path = os.path.join(base_path, "Meteo_Supporting_Files/AUX_MET_1D", date)
+            base_path = os.path.join(
+                base_path, "Meteo_Supporting_Files/AUX_MET_1D", date
+            )
     else:
         base_path = os.path.join(base_path, date)
 
@@ -112,8 +131,10 @@ def get_orbit_files(
     orbit_files = []
     for root, _, files in os.walk(base_path):
         for file in files:
-            if any(orbit_number + ".h5" in file or orbit_number + ".nc" in file for orbit_number in orbit_numbers):
+            if any(
+                orbit_number + ".h5" in file or orbit_number + ".nc" in file
+                for orbit_number in orbit_numbers
+            ):
                 orbit_files.append(os.path.join(root, file))
-            
-    return orbit_files
 
+    return orbit_files

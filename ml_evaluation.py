@@ -1,6 +1,6 @@
 # %%
 from functions.combine_CPR_MSI import (
-    combine_cpr_msi_from_orbits,
+    get_cpr_msi_from_orbits,
     package_ml_xy,
 )
 from functions.search_orbit_files import get_common_orbits
@@ -19,7 +19,7 @@ common_orbits = get_common_orbits(
 len(common_orbits)
 # %%
 orbit_numbers = common_orbits[2:3]
-xds, ds_xmet = combine_cpr_msi_from_orbits(
+xds, ds_xmet = get_cpr_msi_from_orbits(
     orbit_numbers=orbit_numbers,
     get_xmet=True,
 )

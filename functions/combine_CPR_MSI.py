@@ -4,7 +4,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import griddata
 from scipy.spatial.distance import cdist
-from functions.search_orbit_files import get_orbit_files, get_all_orbit_numbers_per_instrument
+from functions.search_orbit_files import (
+    get_orbit_files,
+    get_all_orbit_numbers_per_instrument,
+)
 
 
 def read_xmet(
@@ -44,6 +47,7 @@ def read_xmet(
             ds = ds.set_xindex(["latitude", "longitude"])
 
         return ds
+
 
 # %%
 def read_cpr(orbit_number: str) -> xr.Dataset:
@@ -141,8 +145,9 @@ def merge_colocated(xds_cpr, xds_msi):
     return xds.drop_indexes("profileTime")
 
 
-def combine_cpr_msi_from_orbits(
+def get_cpr_msi_from_orbits(
     orbit_numbers: list | str,
+    msi_band: list[int] | int = [4, 5, 6],
     get_xmet: bool = False,
 ) -> xr.Dataset:
     """
@@ -156,8 +161,8 @@ def combine_cpr_msi_from_orbits(
     ds_xmet_list = []
     # Iterate through the orbit numbers
     for orbit_number in orbit_numbers:
-        xds_cpr = read_cpr(orbit_numer=orbit_number)
-        xds_msi = read_msi(orbit_number=orbit_number, msi_band=[4, 5, 6])
+        xds_cpr = read_cpr(orbit_number=orbit_number)
+        xds_msi = read_msi(orbit_number=orbit_number, band=msi_band)
         xds = merge_colocated(xds_cpr, xds_msi).set_xindex(["latitude", "longitude"])
         # Append the datasets to the lists
         xds_list.append(xds)
@@ -235,6 +240,7 @@ def xr_vectorized_height_interpolation(
         output_dtypes=[ds[variable_name].dtype],
     )
     da_interpolated[new_height_dim] = height_grid
+    da_interpolated.attrs = ds[variable_name].attrs
     return da_interpolated
 
 
@@ -401,8 +407,8 @@ if __name__ == "__main__":
     plt.show()
 
     # %%
-    from functions.combine_CPR_MSI import combine_cpr_msi_from_orbits
+    from functions.combine_CPR_MSI import get_cpr_msi_from_orbits
 
     orbit_number = "03842C"
-    xds, ds_xmet = combine_cpr_msi_from_orbits(orbit_number, get_xmet=True)
+    xds, ds_xmet = get_cpr_msi_from_orbits(orbit_number, get_xmet=True)
 # %%
