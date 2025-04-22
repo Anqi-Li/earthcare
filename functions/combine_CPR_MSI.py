@@ -149,6 +149,8 @@ def get_cpr_msi_from_orbits(
     orbit_numbers: list | str,
     msi_band: list[int] | int = [4, 5, 6],
     get_xmet: bool = False,
+    add_dBZ: bool = True,
+    filter_ground: bool = True,
 ) -> xr.Dataset:
     """
     Combine CPR and MSI data from the given orbit number list.
@@ -174,10 +176,21 @@ def get_cpr_msi_from_orbits(
             ds_xmet_list.append(ds_xmet)
 
     xds_combined = xr.concat(xds_list, dim="nray")
-    xds_combined["dBZ"] = xds_combined["radarReflectivityFactor"].pipe(
-        lambda x: 10 * np.log10(x)
-    )  # Convert to dBZ
-    xds_combined["dBZ"].attrs = {"long_name": "dBZ", "units": "dBZ"}
+
+    if add_dBZ:
+        xds_combined["dBZ"] = xds_combined["radarReflectivityFactor"].pipe(
+            lambda x: 10 * np.log10(x)
+        )  # Convert to dBZ
+        xds_combined["dBZ"].attrs = {"long_name": "dBZ", "units": "dBZ"}
+
+    if filter_ground:
+        # Remove the ground clutter
+        cond_ground = xds_combined["nbin"] < xds_combined["surfaceBinNumber"] - 5
+        vars = [
+            "dBZ",
+            "radarReflectivityFactor",
+        ]
+        xds_combined[vars] = xds_combined[vars].where(cond_ground)
 
     if get_xmet:
         ds_xmet_combined = xr.concat(ds_xmet_list, dim="horizontal_grid")
