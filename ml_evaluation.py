@@ -8,29 +8,41 @@ from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 import xarray as xr
 import joblib
-from datetime import datetime
 import numpy as np
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    category=RuntimeWarning,
+)
+
+# %% load the fitted model
+regressor = joblib.load(
+    "/home/anqil/earthcare/data/rf_regressor_one_day_orbits,-25dBZ,remove_03868H_20250422235221.joblib"
+)
 
 # %%
 common_orbits = get_common_orbits(
     ["CPR", "MSI", "XMET"],
-    date_list=["2025/03/01"],
+    date_list=["2025/02/01"],
 )
 len(common_orbits)
-# %%
-orbit_numbers = common_orbits[2:3]
+# %% load test data
+orbit_numbers = common_orbits[:3]
 xds, ds_xmet = get_cpr_msi_from_orbits(
     orbit_numbers=orbit_numbers,
     get_xmet=True,
+    msi_band=6,
+    filter_ground=True,
+    add_dBZ=True,
 )
-# %%
+# %
 X_test, y_test = package_ml_xy(
     xds=xds,
     ds_xmet=ds_xmet,
-    height_grid=np.arange(1e3, 15e3, 100),
+    lowest_dBZ_threshold=-25,
+    height_grid=np.arange(1e3, 15e3, 100)
 )
-# %% load the fitted model
-regressor = joblib.load("./data/my_rf_regressor_20250410215809.joblib")
 
 # %% Predict
 y_pred = regressor.predict(X_test)
@@ -40,7 +52,7 @@ print(f"Mean Squared Error: {mse}")
 r2 = r2_score(y_test, y_pred)
 print(f"R-squared: {r2}")
 
-# %% plot the predictions
+# %% scatter plot of the predictions vs true values
 plt.figure(figsize=(6, 5))
 plt.plot(
     y_test,
@@ -48,7 +60,7 @@ plt.plot(
     ".",
     alpha=0.5,
     markersize=3,
-    label=["TIR1 (8.35-9.25)", "TIR2 (10.35-11.25)", "TIR3 (11.55-12.45)"],
+    # label=["TIR1 (8.35-9.25)", "TIR2 (10.35-11.25)", "TIR3 (11.55-12.45)"],
 )
 plt.xlabel("True [K]")
 plt.ylabel("Predicted [K]")
@@ -73,70 +85,43 @@ plt.plot([min_val, max_val], [min_val, max_val], "r--", label="True = Predicted"
 plt.legend()
 plt.show()
 
-# # %%
-# fig, axes = plt.subplots(1, 3, figsize=(15, 6), sharey=True, sharex=True)
-# for band in range(3):
-#     hist = axes[band].hist2d(
-#         y_test[:, band],
-#         y_pred[:, band],
-#         bins=(50, 50),
-#         vmax=0.012,
-#         cmap="Blues",
-#         density=True,
-#     )
-#     # Add a colorbar for the current subplot
-#     cbar = fig.colorbar(hist[3], ax=axes[band], orientation="horizontal")
-#     # cbar.set_label("Counts")  # Label for the colorbar    axes[band].ylabel("Predicted [K]")
-#     axes[band].set_title(["TIR1 (8.35-9.25)", "TIR2 (10.35-11.25)", "TIR3 (11.55-12.45)"][band])
-#     axes[band].set_xlabel("True [K]")
-# axes[0].set_ylabel("Predicted [K]")
-# plt.show()
+# %% Histogram of the predictions vs true values
+if len(y_test.shape) == 1:
+    y_test = y_test.expand_dims(dim="band").T
+    y_pred = y_pred.reshape(-1, 1)
+fig, axes = plt.subplots(
+    1,
+    len(y_test.band),
+    figsize=(15, 6),
+    sharey=True,
+    sharex=True,
+)
+if len(y_test.band) == 1:
+    axes = [axes]
+for band in range(len(y_test.band)):
+    # hist = axes[band].hist2d(
+    #     y_test[:, band],
+    #     y_pred[:, band],
+    #     bins=(50, 50),
+    #     # vmax=0.01,
+    #     cmap="Blues",
+    #     density=True,
+    # )
+    h = np.histogram2d(y_test[:, band], y_pred[:, band], bins=(50, 50))
+    axes[band].contour(h[1][:-1], h[2][:-1], h[0])
 
-# # %% Plot da_dBZ_height and da_T_height to show the input variables
-# fig, axes = plt.subplots(1, 2, figsize=(15, 6), sharey=True)
+    # Add diagonal line
+    min_val = min(y_test.min(), y_pred.min())
+    max_val = max(y_test.max(), y_pred.max())
+    axes[band].plot(
+        [min_val, max_val], [min_val, max_val], "r--", label="True = Predicted"
+    )
 
-# # Plot da_dBZ_height
-# im1 = axes[0].imshow(
-#     da_dBZ_height.T,
-#     aspect="auto",
-#     origin="lower",
-#     extent=[0, da_dBZ_height.shape[0], height_grid.min(), height_grid.max()],
-#     cmap="viridis",
-# )
-# axes[0].set_title("Reflectivity (dBZ)")
-# axes[0].set_xlabel("Sample Index")
-# axes[0].set_ylabel("Height [m]")
-# fig.colorbar(im1, ax=axes[0], label="dBZ")
-
-# # Plot da_T_height
-# im2 = axes[1].imshow(
-#     da_T_height.T,
-#     aspect="auto",
-#     origin="lower",
-#     extent=[0, da_T_height.shape[0], height_grid.min(), height_grid.max()],
-#     cmap="plasma",
-# )
-# axes[1].set_title("Temperature (K)")
-# axes[1].set_xlabel("Sample Index")
-# fig.colorbar(im2, ax=axes[1], label="Temperature [K]")
-
-# plt.suptitle(f"Input Variables: Reflectivity and Temperature (Orbit: {orbit_numbers})")
-# plt.tight_layout()
-# plt.show()
-# # %% Plot the orbit trajectory (latitude, longitude)
-# plt.figure(figsize=(10, 6))
-# plt.plot(
-#     xds["longitude"],
-#     xds["latitude"],
-#     marker=".",
-#     label="Orbit Trajectory",
-#     color="blue",
-# )
-# plt.xlabel("Longitude")
-# plt.ylabel("Latitude")
-# plt.title(f"Orbit Trajectory (Orbit: {orbit_numbers})")
-# plt.grid(True)
-# plt.legend()
-# plt.show()
+    # Add a colorbar for the current subplot
+    # cbar = fig.colorbar(hist[3], ax=axes[band], orientation="horizontal")
+    # axes[band].set_title(["TIR1 (8.35-9.25)", "TIR2 (10.35-11.25)", "TIR3 (11.55-12.45)"][band])
+    axes[band].set_xlabel("True [K]")
+axes[0].set_ylabel("Predicted [K]")
+plt.show()
 
 # %%

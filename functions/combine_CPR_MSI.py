@@ -5,6 +5,7 @@ import numpy as np
 from scipy.interpolate import griddata
 from scipy.spatial.distance import cdist
 from functions.search_orbit_files import (
+    get_common_orbits,
     get_orbit_files,
     get_all_orbit_numbers_per_instrument,
 )
@@ -154,6 +155,11 @@ def get_cpr_msi_from_orbits(
 ) -> xr.Dataset:
     """
     Combine CPR and MSI data from the given orbit number list.
+    orbit_numbers: list of orbit numbers
+    msi_band: list of MSI bands to read (default: [4, 5, 6])
+    get_xmet: whether to read the XMET dataset (default: False)
+    add_dBZ: add dBZ variable to the dataset from radarReflectivityFactor
+    filter_ground: remove the ground clutter from radarReflectivityFactor and dBZ
     """
     if isinstance(orbit_numbers, str):
         orbit_numbers = [orbit_numbers]
@@ -186,10 +192,10 @@ def get_cpr_msi_from_orbits(
     if filter_ground:
         # Remove the ground clutter
         cond_ground = xds_combined["nbin"] < xds_combined["surfaceBinNumber"] - 5
-        vars = [
-            "dBZ",
-            "radarReflectivityFactor",
-        ]
+        if add_dBZ:
+            vars = ["dBZ", "radarReflectivityFactor"]
+        else:
+            vars = ["radarReflectivityFactor"]
         xds_combined[vars] = xds_combined[vars].where(cond_ground)
 
     if get_xmet:
@@ -276,6 +282,7 @@ def package_ml_xy(
     xds: xr.Dataset,
     ds_xmet: xr.Dataset,
     height_grid: np.ndarray = np.arange(1e3, 15e3, 100),
+    lowest_dBZ_threshold: float = -25,
     low_dBZ_replacement: float = -50,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -298,49 +305,91 @@ def package_ml_xy(
         height_dim="height",
     )
 
-    # Define the features and target variable
-    mask_clearsky = (da_dBZ_height < -25).all(dim="height_grid").compute()
+    # marke clearsky profiles
+    mask_clearsky = (
+        (da_dBZ_height < lowest_dBZ_threshold).all(dim="height_grid").compute()
+    )
+    # fill low dBZ values with low_dBZ_replacement
     da_dBZ_height = da_dBZ_height.where(
-        np.logical_and(~da_dBZ_height.pipe(np.isinf), da_dBZ_height > -25),
+        np.logical_and(
+            ~da_dBZ_height.pipe(np.isinf), da_dBZ_height > lowest_dBZ_threshold
+        ),
         low_dBZ_replacement,
     )
+    # filter out extreme MSI values
+    mask_bad_msi = (xds["pixel_values"] > 500).compute()
+    if len(mask_bad_msi.shape) > 1:
+        # raise NotImplementedError("mask_bad_msi for multiple bands is not implemented yet")
+        mask_bad_msi = mask_bad_msi.any(dim="band").compute()
+
+    mask = np.logical_and(~mask_clearsky, ~mask_bad_msi)
+
+    # Define the features and target variable
     X = np.stack([da_dBZ_height, da_T_height], axis=2)
-    X = X[~mask_clearsky]  # remove profiles that are clearsky
+    X = X[mask]  # remove profiles that are clearsky
 
     y = xds["pixel_values"].T
-    y = y[~mask_clearsky]
+    y = y[mask]
 
     nsamples, nx, ny = X.shape
     X_2d = X.reshape((nsamples, nx * ny))
 
-    return X_2d, y
+    if len(y) != nsamples:
+        raise ValueError(
+            f"y shape {y.shape} is not compatible with X shape {X_2d.shape}"
+        )
+    # elif np.isnan(X_2d).any():
+    #     raise ValueError(f"X_2d shape {X_2d.shape} contains NaN values")
+    # elif np.isnan(y).any():
+    #     raise ValueError(f"y shape {y.shape} contains NaN values")
+    else:
+        return X_2d, y
 
 
 # %%
 if __name__ == "__main__":
-    # Get all matched orbit numbers
-    # Define the base directory and orbit number
-    base_path = "/data/s6/L1/EarthCare/L1/"
-    orbit_numbers = get_all_orbit_numbers_per_instrument("CPR")
-    matched_orbits = []
-    matched_file_pairs = []
-    for orbit_number in orbit_numbers:
-        orbit_files = get_orbit_files(orbit_number, base_path)
-        if len(orbit_files) >= 2:
-            print(orbit_number)
 
-            matched_orbits.append(orbit_number)
-            matched_file_pairs.append(orbit_files)
+    # %% plot X and y for ML
+    common_orbits = get_common_orbits(
+        ["CPR", "MSI", "XMET"],
+        date_list=["2025/02/01"],
+    )
+    # loop over all orbit numbers
+    for orbit_numbers in common_orbits:
+        xds, ds_xmet = get_cpr_msi_from_orbits(
+            orbit_numbers=orbit_numbers,
+            get_xmet=True,
+            msi_band=6,
+            filter_ground=True,
+            add_dBZ=True,
+        )
+    # %
+    X_test, y_test = package_ml_xy(
+        xds=xds,
+        ds_xmet=ds_xmet,
+        lowest_dBZ_threshold=-25,
+    )
+    # %
+    X = X_test.reshape(len(X_test), 140, 2)
+    fig, axes = plt.subplots(1, 2, figsize=(15, 6), sharey=True)
+    axes[0].contourf(X[:, :, 0].T, vmin=-25, vmax=30)
+    axes[1].contourf(X[:, :, 1].T)
+
+    axes_T = axes[0].twinx()
+    axes_T.plot(y_test, color="red")
+    axes_T.invert_yaxis()
+
+    plt.suptitle(f"Orbit number: {orbit_numbers}")
+    plt.show()
 
     # %%
-    # orbit_number = matched_orbits[0]
-    # orbit_files = matched_file_pairs[0]
     orbit_number = "03613C"  # "01723E"  # "03613C"
+    # xds = get_cpr_msi_from_orbits(orbit_number, get_xmet=False)
     xds_cpr = read_cpr(orbit_number=orbit_number)
     xds_msi = read_msi(orbit_number=orbit_number, band=[4, 5, 6])
-    # %%
     xds = merge_colocated(xds_cpr, xds_msi)
     xds["dbZ"] = xds["radarReflectivityFactor"].pipe(np.log10) * 10  # Convert to dBZ
+
     # %%
     variables = ["dbZ", "pixel_values"]
     fig, axes = plt.subplots(3, 1, figsize=(10, 6), sharex=True)
@@ -419,9 +468,5 @@ if __name__ == "__main__":
     )
     plt.show()
 
-    # %%
-    from functions.combine_CPR_MSI import get_cpr_msi_from_orbits
 
-    orbit_number = "03842C"
-    xds, ds_xmet = get_cpr_msi_from_orbits(orbit_number, get_xmet=True)
 # %%
