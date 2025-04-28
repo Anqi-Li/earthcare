@@ -7,8 +7,10 @@ from scipy.spatial.distance import cdist
 from functions.search_orbit_files import (
     get_common_orbits,
     get_orbit_files,
-    get_all_orbit_numbers_per_instrument,
 )
+import warnings
+
+warnings.filterwarnings("ignore")
 
 
 def read_xmet(
@@ -284,6 +286,7 @@ def package_ml_xy(
     height_grid: np.ndarray = np.arange(1e3, 15e3, 100),
     lowest_dBZ_threshold: float = -25,
     low_dBZ_replacement: float = -50,
+    ground_temperature_replacement: float | int | bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Prepare the input data for machine learning.
@@ -304,6 +307,18 @@ def package_ml_xy(
         height_grid=height_grid,
         height_dim="height",
     )
+
+    # Replace the underground temperature with a constant value
+
+    if ground_temperature_replacement == True:
+        da_T_height = da_T_height.interpolate_na(
+            dim="height_grid", method="nearest", fill_value="extrapolate"
+        )
+    elif type(ground_temperature_replacement) in (float, int):
+        da_T_height = da_T_height.where(
+            ~da_T_height.isnull(),
+            ground_temperature_replacement,
+        )
 
     # marke clearsky profiles
     mask_clearsky = (
@@ -338,10 +353,10 @@ def package_ml_xy(
         raise ValueError(
             f"y shape {y.shape} is not compatible with X shape {X_2d.shape}"
         )
-    # elif np.isnan(X_2d).any():
-    #     raise ValueError(f"X_2d shape {X_2d.shape} contains NaN values")
-    # elif np.isnan(y).any():
-    #     raise ValueError(f"y shape {y.shape} contains NaN values")
+    elif np.isnan(X_2d).any():
+        raise ValueError(f"X_2d shape {X_2d.shape} contains NaN values")
+    elif np.isnan(y).any():
+        raise ValueError(f"y shape {y.shape} contains NaN values")
     else:
         return X_2d, y
 
@@ -352,8 +367,9 @@ if __name__ == "__main__":
     # %% plot X and y for ML
     common_orbits = get_common_orbits(
         ["CPR", "MSI", "XMET"],
-        date_list=["2025/02/01"],
+        date_list=["2025/02/02"],
     )
+    print(len(common_orbits))
     # loop over all orbit numbers
     for orbit_numbers in common_orbits:
         xds, ds_xmet = get_cpr_msi_from_orbits(
@@ -363,24 +379,29 @@ if __name__ == "__main__":
             filter_ground=True,
             add_dBZ=True,
         )
-    # %
-    X_test, y_test = package_ml_xy(
-        xds=xds,
-        ds_xmet=ds_xmet,
-        lowest_dBZ_threshold=-25,
-    )
-    # %
-    X = X_test.reshape(len(X_test), 140, 2)
-    fig, axes = plt.subplots(1, 2, figsize=(15, 6), sharey=True)
-    axes[0].contourf(X[:, :, 0].T, vmin=-25, vmax=30)
-    axes[1].contourf(X[:, :, 1].T)
+        # %
+        X_test, y_test = package_ml_xy(
+            xds=xds,
+            ds_xmet=ds_xmet,
+            lowest_dBZ_threshold=-25,
+        )
 
-    axes_T = axes[0].twinx()
-    axes_T.plot(y_test, color="red")
-    axes_T.invert_yaxis()
+        # %
+        X = X_test.reshape(len(X_test), 140, 2)
+        fig, axes = plt.subplots(1, 2, figsize=(15, 6), sharey=True)
+        axes[0].contourf(X[:, :, 0].T, vmin=-25, vmax=30)
+        axes[0].set_title("dBZ")
+        axes[0].set_ylabel("Height [m]")
+        axes[1].contourf(X[:, :, 1].T)
+        axes[1].set_title("Temperature")
 
-    plt.suptitle(f"Orbit number: {orbit_numbers}")
-    plt.show()
+        axes_T = axes[0].twinx()
+        axes_T.plot(y_test, color="red")
+        axes_T.invert_yaxis()
+        axes_T.set_ylabel("Brightness Temperature")
+
+        plt.suptitle(f"Orbit number: {orbit_numbers}")
+        plt.show()
 
     # %%
     orbit_number = "03613C"  # "01723E"  # "03613C"
