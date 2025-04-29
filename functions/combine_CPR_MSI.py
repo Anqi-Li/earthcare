@@ -320,16 +320,16 @@ def package_ml_xy(
             ground_temperature_replacement,
         )
 
-    # marke clearsky profiles
-    mask_clearsky = (
-        (da_dBZ_height < lowest_dBZ_threshold).all(dim="height_grid").compute()
-    )
-    # fill low dBZ values with low_dBZ_replacement
+    # fill low dBZ values and inf with low_dBZ_replacement
     da_dBZ_height = da_dBZ_height.where(
         np.logical_and(
             ~da_dBZ_height.pipe(np.isinf), da_dBZ_height > lowest_dBZ_threshold
         ),
         low_dBZ_replacement,
+    )
+    # marke clearsky profiles
+    mask_clearsky = (
+        (da_dBZ_height < lowest_dBZ_threshold).all(dim="height_grid").compute()
     )
     # filter out extreme MSI values
     mask_bad_msi = (xds["pixel_values"] > 500).compute()
