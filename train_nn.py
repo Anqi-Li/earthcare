@@ -59,14 +59,3 @@ print("Model training completed in", datetime.now() - start)
 # %% Save the trained model
 joblib.dump(nn_model, f"./data/nn_model_{model_tag}.pkl")
 print(f"Model saved")
-
-# %%
-# from sklearn.metrics import mean_squared_error, r2_score
-
-# # Evaluate the model
-# y_pred = nn_model.predict(X_train)
-# mse = mean_squared_error(y_train, y_pred)
-# print(f"Mean Squared Error on test data: {mse}")
-
-# r2 = r2_score(y_train, y_pred)
-# print(f"R-squared: {r2}")
