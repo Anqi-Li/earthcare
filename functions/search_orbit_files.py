@@ -122,6 +122,10 @@ def get_orbit_files(
             base_path = os.path.join(
                 base_path, "Meteo_Supporting_Files/AUX_MET_1D", date
             )
+        elif inst == "XMET_aligned":
+            base_path = os.path.join(
+                base_path, "Meteo_Supporting_Files/AUX_MET_1D_aligned_CPR", date
+            )
     else:
         base_path = os.path.join(base_path, date)
 
@@ -138,3 +142,48 @@ def get_orbit_files(
                 orbit_files.append(os.path.join(root, file))
 
     return orbit_files
+
+#%%
+def remove_duplicated_orbit_files(
+    inst: str = None,
+    base_path: str = "/data/s6/L1/EarthCare/",
+    date: str = "",  # format: "YYYY/MM/DD"
+) -> list[str]:
+
+    def find_duplicates(input_list):
+        seen = set()
+        duplicates = set()
+        for item in input_list:
+            if item in seen:
+                duplicates.add(item)
+            else:
+                seen.add(item)
+        return list(duplicates)
+    
+    # Get all orbit numbers for the specified instrument
+    all_orbit_numbers = get_all_orbit_numbers_per_instrument(
+        inst=inst,
+        date=date,
+        base_path=base_path,
+    )
+    orbits_duplicated = find_duplicates(all_orbit_numbers)
+    # Remove duplicated orbit files based on the processing date
+    for orbit in orbits_duplicated:
+        orbit_files = get_orbit_files(
+            orbit_numbers=orbit,
+            inst=inst,
+            date=date,
+            base_path=base_path,
+        )
+        if len(orbit_files) > 1:
+            # Sort the files by modification time
+            orbit_files.sort()
+            # Keep the most recent file
+            for file in orbit_files[:-1]:
+                os.remove(file)
+                print(f"Removed duplicate file: {file}")
+            print(f'Kept file: {orbit_files[-1]}')
+        if len(orbit_files) == 1:
+            print(f"Only one file found for orbit {orbit}: {orbit_files[0]}")
+    return orbits_duplicated
+# %%
