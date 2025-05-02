@@ -10,8 +10,9 @@ import xarray as xr
 
 REWRITE = False  # Set to True to overwrite existing files
 
+
 def create_xmet_aligned_files():
-    # %%
+    # %% search for common orbits and only convert those XMET files
     common_orbits = get_common_orbits(["CPR", "MSI", "XMET"])
     common_orbit_files = get_orbit_files(common_orbits, "XMET")
     base_dir = "/data/s6/L1/EarthCare/Meteo_Supporting_Files/AUX_MET_1D_aligned_CPR"
@@ -26,7 +27,7 @@ def create_xmet_aligned_files():
         save_dir = os.path.join(base_dir, y, m, d, filename)
         save_file_path = os.path.join(save_dir, f"{filename}.nc")
         orbit_number = filename[-6:]
-        print(orbit_number)
+        # print(orbit_number)
 
         # Check if the file already exists
         if not os.path.exists(save_file_path):
@@ -43,19 +44,17 @@ def create_xmet_aligned_files():
                 path=save_file_path,
                 mode="w",
             )
-            print(f"File saved to {save_file_path}")
+            # print(f"File saved to {save_file_path}")
             num_of_files_created += 1
         else:
             if REWRITE:
-                NotImplementedError(
-                    f"File already exists: {save_file_path}, but REWRITE is set to True."
-                )
-            print("File already exists, skip.")
+                NotImplementedError(f"File already exists: {save_file_path}, but REWRITE is set to True.")
+            # print("File already exists, skip.")
             num_of_files_existed += 1
-
 
     print(f"Number of files created: {num_of_files_created}")
     print(f"Number of files existed: {num_of_files_existed}")
+
 
 # %%
 if __name__ == "__main__":

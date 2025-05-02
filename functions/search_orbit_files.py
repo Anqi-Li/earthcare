@@ -20,13 +20,9 @@ def get_all_orbit_numbers_per_instrument(
         elif inst == "MSI":
             base_path = os.path.join(base_path, "L1/MSI_NOM_1B", date)
         elif inst == "XMET":
-            base_path = os.path.join(
-                base_path, "Meteo_Supporting_Files/AUX_MET_1D", date
-            )
+            base_path = os.path.join(base_path, "Meteo_Supporting_Files/AUX_MET_1D", date)
         elif inst == "XMET_aligned":
-            base_path = os.path.join(
-                base_path, "Meteo_Supporting_Files/AUX_MET_1D_aligned_CPR", date
-            )
+            base_path = os.path.join(base_path, "Meteo_Supporting_Files/AUX_MET_1D_aligned_CPR", date)
     else:
         base_path = os.path.join(base_path, date)
 
@@ -62,10 +58,7 @@ def get_common_orbits(
     for date in date_list:
 
         # Get all orbit numbers for each instrument
-        orbit_numbers = [
-            get_all_orbit_numbers_per_instrument(inst, date=date)
-            for inst in instruments
-        ]
+        orbit_numbers = [get_all_orbit_numbers_per_instrument(inst, date=date) for inst in instruments]
 
         # Find elements that exist in all lists
         common_orbits_per_date = set(orbit_numbers[0]).intersection(*orbit_numbers[1:])
@@ -86,10 +79,7 @@ def get_date_list_from_range(
     end_date = datetime.strptime(date_range[1], "%Y/%m/%d")
 
     # Generate a list of dates within the range
-    date_list = [
-        (start_date + timedelta(days=i)).strftime("%Y/%m/%d")
-        for i in range((end_date - start_date).days + 1)
-    ]
+    date_list = [(start_date + timedelta(days=i)).strftime("%Y/%m/%d") for i in range((end_date - start_date).days + 1)]
 
     # Get common orbits for each date in the range
     return date_list
@@ -119,13 +109,9 @@ def get_orbit_files(
         elif inst == "MSI":
             base_path = os.path.join(base_path, "L1/MSI_NOM_1B", date)
         elif inst == "XMET":
-            base_path = os.path.join(
-                base_path, "Meteo_Supporting_Files/AUX_MET_1D", date
-            )
+            base_path = os.path.join(base_path, "Meteo_Supporting_Files/AUX_MET_1D", date)
         elif inst == "XMET_aligned":
-            base_path = os.path.join(
-                base_path, "Meteo_Supporting_Files/AUX_MET_1D_aligned_CPR", date
-            )
+            base_path = os.path.join(base_path, "Meteo_Supporting_Files/AUX_MET_1D_aligned_CPR", date)
     else:
         base_path = os.path.join(base_path, date)
 
@@ -135,19 +121,18 @@ def get_orbit_files(
     orbit_files = []
     for root, _, files in os.walk(base_path):
         for file in files:
-            if any(
-                orbit_number + ".h5" in file or orbit_number + ".nc" in file
-                for orbit_number in orbit_numbers
-            ):
+            if any(orbit_number + ".h5" in file or orbit_number + ".nc" in file for orbit_number in orbit_numbers):
                 orbit_files.append(os.path.join(root, file))
 
     return orbit_files
 
-#%%
+
+# %%
 def remove_duplicated_orbit_files(
     inst: str = None,
     base_path: str = "/data/s6/L1/EarthCare/",
     date: str = "",  # format: "YYYY/MM/DD"
+    remove: bool = False,
 ) -> list[str]:
 
     def find_duplicates(input_list):
@@ -159,7 +144,7 @@ def remove_duplicated_orbit_files(
             else:
                 seen.add(item)
         return list(duplicates)
-    
+
     # Get all orbit numbers for the specified instrument
     all_orbit_numbers = get_all_orbit_numbers_per_instrument(
         inst=inst,
@@ -167,23 +152,27 @@ def remove_duplicated_orbit_files(
         base_path=base_path,
     )
     orbits_duplicated = find_duplicates(all_orbit_numbers)
-    # Remove duplicated orbit files based on the processing date
-    for orbit in orbits_duplicated:
-        orbit_files = get_orbit_files(
-            orbit_numbers=orbit,
-            inst=inst,
-            date=date,
-            base_path=base_path,
-        )
-        if len(orbit_files) > 1:
-            # Sort the files by modification time
-            orbit_files.sort()
-            # Keep the most recent file
-            for file in orbit_files[:-1]:
-                os.remove(file)
-                print(f"Removed duplicate file: {file}")
-            print(f'Kept file: {orbit_files[-1]}')
-        if len(orbit_files) == 1:
-            print(f"Only one file found for orbit {orbit}: {orbit_files[0]}")
+
+    if remove:
+        # Remove duplicated orbit files based on the processing date
+        for orbit in orbits_duplicated:
+            orbit_files = get_orbit_files(
+                orbit_numbers=orbit,
+                inst=inst,
+                date=date,
+                base_path=base_path,
+            )
+            if len(orbit_files) > 1:
+                # Sort the files by modification time
+                orbit_files.sort()
+                # Keep the most recent file
+                for file in orbit_files[:-1]:
+                    os.remove(file)
+                    print(f"Removed duplicate file: {file}")
+                print(f"Kept file: {orbit_files[-1]}")
+            if len(orbit_files) == 1:
+                print(f"Only one file found for orbit {orbit}: {orbit_files[0]}")
     return orbits_duplicated
+
+
 # %%
