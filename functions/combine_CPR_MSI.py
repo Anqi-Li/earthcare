@@ -33,9 +33,7 @@ def read_xmet(
         raise FileNotFoundError(f"No XMET file found for orbit number {orbit_number}")
 
     elif len(file_paths) > 1:
-        raise FileExistsError(
-            f"Multiple XMET files found for orbit number {orbit_number}"
-        )
+        raise FileExistsError(f"Multiple XMET files found for orbit number {orbit_number}")
 
     elif len(file_paths) == 1:
         ds = xr.open_dataset(
@@ -62,9 +60,7 @@ def read_cpr(orbit_number: str) -> xr.Dataset:
     if len(full_paths) == 0:
         raise FileNotFoundError(f"No CPR file found for orbit number {orbit_number}")
     elif len(full_paths) > 1:
-        raise FileExistsError(
-            f"Multiple CPR files found for orbit number {orbit_number}"
-        )
+        raise FileExistsError(f"Multiple CPR files found for orbit number {orbit_number}")
     elif len(full_paths) == 1:
         full_path = full_paths[0]
         # Open the HDF5 file and read a specific group into xarray
@@ -95,9 +91,7 @@ def read_msi(orbit_number, band=[4, 5, 6]):
     if len(full_paths) == 0:
         raise FileNotFoundError(f"No MSI file found for orbit number {orbit_number}")
     elif len(full_paths) > 1:
-        raise FileExistsError(
-            f"Multiple MSI files found for orbit number {orbit_number}"
-        )
+        raise FileExistsError(f"Multiple MSI files found for orbit number {orbit_number}")
     elif len(full_paths) == 1:
         full_path = full_paths[0]
         # Open the HDF5 file and read a specific group into xarray
@@ -134,10 +128,7 @@ def merge_colocated(xds_cpr, xds_msi):
     # Find the closest MSI pixel (across_track) to match CPR profile
     pixel_number = 266
     xds_msi_selected = xds_msi.isel(across_track=pixel_number).sel(
-        time=xds_cpr.profileTime
-        + np.timedelta64(
-            640, "ms"
-        ),  # shift the lat/lon match in samppling time manually
+        time=xds_cpr.profileTime + np.timedelta64(640, "ms"),  # shift the lat/lon match in samppling time manually
         method="nearest",
     )
     # Merge the two datasets
@@ -186,9 +177,7 @@ def get_cpr_msi_from_orbits(
     xds_combined = xr.concat(xds_list, dim="nray")
 
     if add_dBZ:
-        xds_combined["dBZ"] = xds_combined["radarReflectivityFactor"].pipe(
-            lambda x: 10 * np.log10(x)
-        )  # Convert to dBZ
+        xds_combined["dBZ"] = xds_combined["radarReflectivityFactor"].pipe(lambda x: 10 * np.log10(x))  # Convert to dBZ
         xds_combined["dBZ"].attrs = {"long_name": "dBZ", "units": "dBZ"}
 
     if filter_ground:
@@ -311,9 +300,7 @@ def package_ml_xy(
     # Replace the underground temperature with a constant value
 
     if ground_temperature_replacement == True:
-        da_T_height = da_T_height.interpolate_na(
-            dim="height_grid", method="nearest", fill_value="extrapolate"
-        )
+        da_T_height = da_T_height.interpolate_na(dim="height_grid", method="nearest", fill_value="extrapolate")
     elif type(ground_temperature_replacement) in (float, int):
         da_T_height = da_T_height.where(
             ~da_T_height.isnull(),
@@ -322,17 +309,13 @@ def package_ml_xy(
 
     # fill low dBZ values and inf with low_dBZ_replacement
     da_dBZ_height = da_dBZ_height.where(
-        np.logical_and(
-            ~da_dBZ_height.pipe(np.isinf), da_dBZ_height > lowest_dBZ_threshold
-        ),
+        np.logical_and(~da_dBZ_height.pipe(np.isinf), da_dBZ_height > lowest_dBZ_threshold),
         low_dBZ_replacement,
     )
     # marke clearsky profiles
-    mask_clearsky = (
-        (da_dBZ_height < lowest_dBZ_threshold).all(dim="height_grid").compute()
-    )
+    mask_clearsky = (da_dBZ_height < lowest_dBZ_threshold).all(dim="height_grid").compute()
     # filter out extreme MSI values
-    mask_bad_msi = (xds["pixel_values"] > 500).compute()
+    mask_bad_msi = np.logical_or((xds["pixel_values"] > 500), (xds["pixel_values"] < 150)).compute()
     if len(mask_bad_msi.shape) > 1:
         # raise NotImplementedError("mask_bad_msi for multiple bands is not implemented yet")
         mask_bad_msi = mask_bad_msi.any(dim="band").compute()
@@ -350,9 +333,7 @@ def package_ml_xy(
     X_2d = X.reshape((nsamples, nx * ny))
 
     if len(y) != nsamples:
-        raise ValueError(
-            f"y shape {y.shape} is not compatible with X shape {X_2d.shape}"
-        )
+        raise ValueError(f"y shape {y.shape} is not compatible with X shape {X_2d.shape}")
     elif np.isnan(X_2d).any():
         raise ValueError(f"X_2d shape {X_2d.shape} contains NaN values")
     elif np.isnan(y).any():
@@ -467,10 +448,7 @@ if __name__ == "__main__":
     # %%
     slice_time = slice(None, None, 200)
     xds_msi_selected = xds_msi.isel(across_track=slice(266, 268)).sel(
-        time=xds_cpr.isel(nray=slice_time).profileTime
-        + np.timedelta64(
-            640, "ms"
-        ),  # shift the lat/lon match in samppling time manually
+        time=xds_cpr.isel(nray=slice_time).profileTime + np.timedelta64(640, "ms"),  # shift the lat/lon match in samppling time manually
         method="nearest",
     )
     plt.plot(
