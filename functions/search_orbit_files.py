@@ -163,7 +163,7 @@ def remove_duplicated_orbit_files(
                 base_path=base_path,
             )
             if len(orbit_files) > 1:
-                # Sort the files by modification time
+                # Sort the files by name
                 orbit_files.sort()
                 # Keep the most recent file
                 for file in orbit_files[:-1]:

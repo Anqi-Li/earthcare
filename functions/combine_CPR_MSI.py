@@ -14,7 +14,8 @@ warnings.filterwarnings("ignore")
 
 
 def read_xmet(
-    orbit_number: str,
+    orbit_number: str = None,
+    file_path: str = None,
     base_path: str = "/data/s6/L1/EarthCare/Meteo_Supporting_Files/AUX_MET_1D/",
     aligned: bool = False,
     set_coords: bool = True,
@@ -27,17 +28,27 @@ def read_xmet(
     if aligned:
         base_path = base_path.replace("AUX_MET_1D", "AUX_MET_1D_aligned_CPR")
         group = None
-
-    file_paths = get_orbit_files(orbit_numbers=orbit_number, base_path=base_path)
+    
+    if file_path is not None:
+        # If orbit_file is provided, use it directly
+        file_paths = [file_path]
+    else:
+        # If orbit_number is provided, search for the corresponding file
+        if orbit_number is None:
+            raise ValueError("Either orbit_number or orbit_file must be provided.")
+        
+        # Get the file paths for the given orbit number
+        file_paths = get_orbit_files(orbit_numbers=orbit_number, base_path=base_path)
     if len(file_paths) == 0:
         raise FileNotFoundError(f"No XMET file found for orbit number {orbit_number}")
 
-    elif len(file_paths) > 1:
-        raise FileExistsError(f"Multiple XMET files found for orbit number {orbit_number}")
-
-    elif len(file_paths) == 1:
+    elif len(file_paths) >= 1:
+        # raise FileExistsError(f"Multiple XMET files found for orbit number {orbit_number}")
+        
+        file_paths.sort()
+        file_path = file_paths[-1]  # Get the latest file
         ds = xr.open_dataset(
-            file_paths[0],
+            file_path,
             group=group,
             chunks="auto",
         )

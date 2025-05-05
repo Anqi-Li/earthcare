@@ -23,17 +23,18 @@ def create_xmet_aligned_files():
     num_of_files_created = 0
 
     for i in range(len(common_orbit_files)):
-        _, _, _, _, _, _, _, y, m, d, filename, _ = common_orbit_files[i].split("/")
+        xmet_file_path = common_orbit_files[i]
+        _, _, _, _, _, _, _, y, m, d, filename, _ = xmet_file_path.split("/")
         save_dir = os.path.join(base_dir, y, m, d, filename)
         save_file_path = os.path.join(save_dir, f"{filename}.nc")
         orbit_number = filename[-6:]
-        # print(orbit_number)
+        print(xmet_file_path)
 
         # Check if the file already exists
         if not os.path.exists(save_file_path):
 
             xmet = align_xmet_horizontal_grid(
-                read_xmet(orbit_number=orbit_number),
+                read_xmet(file_path=xmet_file_path),
                 read_cpr(orbit_number=orbit_number).set_xindex(["latitude", "longitude"]),
             )
             # Ensure the save directory exists
