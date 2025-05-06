@@ -102,7 +102,10 @@ def read_msi(orbit_number, band=[4, 5, 6]):
     if len(full_paths) == 0:
         raise FileNotFoundError(f"No MSI file found for orbit number {orbit_number}")
     elif len(full_paths) > 1:
-        raise FileExistsError(f"Multiple MSI files found for orbit number {orbit_number}")
+        full_paths.sort()
+        full_path = full_paths[-1]  # Get the latest file
+        # print(f"Multiple MSI files found for orbit number {orbit_number}, using the latest one: {full_path}")
+        # raise FileExistsError(f"Multiple MSI files found for orbit number {orbit_number}")
     elif len(full_paths) == 1:
         full_path = full_paths[0]
         # Open the HDF5 file and read a specific group into xarray

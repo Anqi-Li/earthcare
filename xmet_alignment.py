@@ -2,11 +2,9 @@
 from functions.search_orbit_files import (
     get_common_orbits,
     get_orbit_files,
-    get_all_orbit_numbers_per_instrument,
 )
 from functions.combine_CPR_MSI import read_xmet, align_xmet_horizontal_grid, read_cpr
 import os
-import xarray as xr
 
 REWRITE = False  # Set to True to overwrite existing files
 
@@ -23,6 +21,9 @@ def create_xmet_aligned_files():
     num_of_files_created = 0
 
     for i in range(len(common_orbit_files)):
+        print(f"Processing file {i + 1}/{len(common_orbit_files)}")
+
+        # Get the file path and orbit number
         xmet_file_path = common_orbit_files[i]
         _, _, _, _, _, _, _, y, m, d, filename, _ = xmet_file_path.split("/")
         save_dir = os.path.join(base_dir, y, m, d, filename)
