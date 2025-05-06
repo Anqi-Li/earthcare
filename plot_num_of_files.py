@@ -26,9 +26,10 @@ def count_num_files_per_day(orbit_numbers, inst):
 
     # Get file paths for the specified instrument
     file_paths = get_orbit_files(orbit_numbers=orbit_numbers, inst=inst)
+    file_paths_unique_orbit = list({f[-9:-3]: f for f in file_paths}.values())
 
     # Extract dates from file paths (assuming the date is part of the directory structure)
-    file_dates = ["".join(path.split("/")[7:10]) for path in file_paths]
+    file_dates = ["".join(path.split("/")[7:10]) for path in file_paths_unique_orbit]
 
     # Count occurrences of each date
     file_count_per_day = Counter(file_dates)
@@ -56,7 +57,7 @@ orbit_dict = {
     "Common": get_common_orbits(instruments=["CPR", "MSI", "XMET"]),
     "CPR": get_all_orbit_numbers_per_instrument(inst="CPR"),
     "MSI": get_all_orbit_numbers_per_instrument(inst="MSI"),
-    "XMET": get_all_orbit_numbers_per_instrument(inst="XMET"),
+    "XMET": list(set(get_all_orbit_numbers_per_instrument(inst="XMET"))),
     # "XMET_aligned": get_all_orbit_numbers_per_instrument(inst="XMET_aligned"),
 }
 # %%

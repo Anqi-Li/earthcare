@@ -28,7 +28,7 @@ def create_xmet_aligned_files():
         save_dir = os.path.join(base_dir, y, m, d, filename)
         save_file_path = os.path.join(save_dir, f"{filename}.nc")
         orbit_number = filename[-6:]
-        print(xmet_file_path)
+        # print(xmet_file_path)
 
         # Check if the file already exists
         if not os.path.exists(save_file_path):
