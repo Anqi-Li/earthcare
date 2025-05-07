@@ -109,29 +109,30 @@ def read_msi(orbit_number, band=[4, 5, 6]):
     elif len(full_paths) == 1:
         full_path = full_paths[0]
         # Open the HDF5 file and read a specific group into xarray
-        xds = xr.open_dataset(full_path, group="ScienceData", chunks="auto")
-        xds = xds.set_coords(["latitude", "longitude", "time"])
-        xds = xds.isel(
-            band=band,  # Select a specific band
-            across_track=slice(12, -15),  # Remove the edges of the image
-        )
-        xds = xds.set_xindex(["time"])
+        
+    xds = xr.open_dataset(full_path, group="ScienceData", chunks="auto")
+    xds = xds.set_coords(["latitude", "longitude", "time"])
+    xds = xds.isel(
+        band=band,  # Select a specific band
+        across_track=slice(12, -15),  # Remove the edges of the image
+    )
+    xds = xds.set_xindex(["time"])
 
-        if band in [4, 5, 6, [4, 5, 6], [4, 5], [5, 6], [4, 6]]:
-            # TIR bands' unit are in Kelvin (for easy visualization)
-            xds["pixel_values"].attrs = {
-                "long_name": "Brightness Temperature",
-                "units": "K",
-            }
-        elif band in [1, 2, 3]:
-            xds["pixel_values"].attrs = {
-                "long_name": "Radiance",
-                "units": "Wm-2sr-1um-1",
-            }
-        else:
-            print("Selected band is not available. (Valid value 0-6)")
+    if band in [4, 5, 6, [4, 5, 6], [4, 5], [5, 6], [4, 6]]:
+        # TIR bands' unit are in Kelvin (for easy visualization)
+        xds["pixel_values"].attrs = {
+            "long_name": "Brightness Temperature",
+            "units": "K",
+        }
+    elif band in [1, 2, 3]:
+        xds["pixel_values"].attrs = {
+            "long_name": "Radiance",
+            "units": "Wm-2sr-1um-1",
+        }
+    else:
+        print("Selected band is not available. (Valid value 0-6)")
 
-        return xds
+    return xds
 
 
 # %%
