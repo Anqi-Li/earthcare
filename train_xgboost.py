@@ -41,36 +41,39 @@ with open("./data/orbit_numbers_{}.txt".format(model_tag), "w") as f:
 print(model_tag)
 print("total number of orbits for training: ", len(common_orbits_train))
 
-# %% load the data to xarray datasets
+
+# %% load the data to xgb Dmatrix
+def get_xgb_Dmatrix(orbit_numbers):
+    """
+    Load data for training XGBoost model from specified orbits and return a DMatrix.
+    Parameters:
+    orbit_numbers (list): List of orbit numbers to load data from.
+    Returns:
+    dtrain (xgb.DMatrix): DMatrix containing the training data.
+    """
+    # Load the data from the specified orbits
+    xds, ds_xmet = get_cpr_msi_from_orbits(
+        orbit_numbers=orbit_numbers,
+        msi_band=[4, 5, 6],
+        get_xmet=True,
+        filter_ground=True,
+        add_dBZ=True,
+    )
+
+    X_train, y_train = package_ml_xy(xds=xds, ds_xmet=ds_xmet, lowest_dBZ_threshold=-25)
+    dtrain = xgb.DMatrix(X_train, label=y_train)
+    return dtrain
+
+
 print("Loading training data...")
 start = datetime.now()
-orbit_numbers = common_orbits_train
-xds, ds_xmet = get_cpr_msi_from_orbits(
-    orbit_numbers=orbit_numbers,
-    msi_band=[4, 5, 6],
-    get_xmet=True,
-    filter_ground=True,
-    add_dBZ=True,
-)
-
-X_train, y_train = package_ml_xy(xds=xds, ds_xmet=ds_xmet, lowest_dBZ_threshold=-25)
-dtrain = xgb.DMatrix(X_train, label=y_train)
+dtrain = get_xgb_Dmatrix(common_orbits_train)
 print("Load training data", datetime.now() - start)
 
-# %% load the data to xarray datasets
+# %% load the test data
 print("Loading test data...")
 start = datetime.now()
-orbit_numbers = common_orbits_test
-xds, ds_xmet = get_cpr_msi_from_orbits(
-    orbit_numbers=orbit_numbers,
-    msi_band=[4, 5, 6],
-    get_xmet=True,
-    filter_ground=True,
-    add_dBZ=True,
-)
-
-X_test, y_test = package_ml_xy(xds=xds, ds_xmet=ds_xmet, lowest_dBZ_threshold=-25)
-dtest = xgb.DMatrix(X_test, label=y_test)
+dtest = get_xgb_Dmatrix(common_orbits_test)
 print("Load test data", datetime.now() - start)
 
 # %% load previoiusly saved model
