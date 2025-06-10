@@ -57,6 +57,11 @@ def save_training_dataset(orbit_number):
         height_grid=height_grid,
     )
 
+    # Check if the training data is empty
+    if X_train.size == 0 or y_train.size == 0:
+        print(f"No training data available for orbit {orbit_number}. Skipping...")
+        return
+
     # Package the data into an xarray dataset and preserve the relevant coordinates.
     # This is necessary to ensure that the data can be reshaped correctly later
     ds = (
@@ -78,6 +83,7 @@ def save_training_dataset(orbit_number):
     print("time spent:", datetime.datetime.now() - start)
 
 
+# %%
 for i in range(len(common_orbits_all)):
     # Iterate through each orbit number in the list and save the training dataset
     # for that orbit number.
