@@ -1,12 +1,8 @@
 # %%
+import glob
+from os import path
+import xarray as xr
 import xgboost as xgb
-from functions.combine_CPR_MSI import (
-    get_cpr_msi_from_orbits,
-    package_ml_xy,
-)
-from functions.search_orbit_files import (
-    get_common_orbits,
-)
 import random
 import json
 from datetime import datetime
@@ -16,70 +12,49 @@ warnings.filterwarnings("ignore")
 
 model_tag = "all_orbits_20250101_20250501_seed42"
 
-# %% select orbit numbers
-common_orbits_all = get_common_orbits(
-    ["CPR", "MSI", "XMET_aligned"],
-    date_range=["2025/01/01", "2025/05/01"],
-)
-
-# %%
+# %% list all nc files in the directory
+path_to_data = "./data/training_data/"
+nc_files = glob.glob(path.join(path_to_data, "*.nc"))
+nc_files.sort()
 random.seed(42)  # Set a seed for reproducibility
-random.shuffle(common_orbits_all)
-split_index = int(len(common_orbits_all) * 0.8)
-common_orbits_train = common_orbits_all[:split_index]
-common_orbits_test = common_orbits_all[split_index:]
+random.shuffle(nc_files)
+split_index = int(len(nc_files) * 0.8)
+nc_files_train = nc_files[:split_index]
+nc_files_test = nc_files[split_index:]
 
 # save the orbit numbers to a file
 with open("./data/orbit_numbers_{}.txt".format(model_tag), "w") as f:
     f.write("train orbits:\n")
-    for orbit in common_orbits_train:
+    for file in nc_files_train:
+        orbit = file[-9:-3]  # Extract orbit number from filename
         f.write(orbit + "\n")
     f.write("test orbits:\n")
-    for orbit in common_orbits_test:
+    for file in nc_files_test:
+        orbit = file[-9:-3]  # Extract orbit number from filename
         f.write(orbit + "\n")
 
-print(model_tag)
-print("total number of orbits for training: ", len(common_orbits_train))
 
-
-# %% load the data to xgb Dmatrix
-def get_xgb_Dmatrix(orbit_numbers):
-    """
-    Load data for training XGBoost model from specified orbits and return a DMatrix.
-    Parameters:
-    orbit_numbers (list): List of orbit numbers to load data from.
-    Returns:
-    dtrain (xgb.DMatrix): DMatrix containing the training data.
-    """
-    # Load the data from the specified orbits
-    xds, ds_xmet = get_cpr_msi_from_orbits(
-        orbit_numbers=orbit_numbers,
-        msi_band=[4, 5, 6],
-        get_xmet=True,
-        filter_ground=True,
-        add_dBZ=True,
+# %% Load the data from the netCDF files and convert to DMatrix
+def get_Dmatrix(nc_files):
+    ds = xr.open_mfdataset(
+        nc_files,
+        combine="nested",
+        concat_dim="nray",
+        parallel=True,
     )
-
-    X_train, y_train = package_ml_xy(xds=xds, ds_xmet=ds_xmet, lowest_dBZ_threshold=-25)
-    dtrain = xgb.DMatrix(X_train, label=y_train)
+    dtrain = xgb.DMatrix(ds.x, label=ds.pixel_values)
     return dtrain
 
 
-print("Loading training data...")
+print("Loading training data from netCDF files...")
 start = datetime.now()
-dtrain = get_xgb_Dmatrix(common_orbits_train)
+dtrain = get_Dmatrix(nc_files_train)
+dtest = get_Dmatrix(nc_files_test)
 print("Load training data", datetime.now() - start)
 
-# %% load the test data
-print("Loading test data...")
-start = datetime.now()
-dtest = get_xgb_Dmatrix(common_orbits_test)
-print("Load test data", datetime.now() - start)
-
 # %% load previoiusly saved model
-# Uncomment the following lines if you want to load a previously saved model
 model_previous = xgb.Booster()
-model_previous.load_model("./data/xgb_regressor_{}.json".format("all_orbits_20250101_20250501"))
+model_previous.load_model("./data/xgb_regressor_{}.json".format(model_tag))
 
 # %% Fit model
 print("Training XGBoost regression model...")
@@ -101,8 +76,8 @@ evals_result = {}  # Dictionary to store evaluation results
 model = xgb.train(
     params,
     dtrain,
-    num_boost_round=1000,  # Number of boosting rounds
-    evals=[(dtest, "validation")],  # Evaluation set
+    num_boost_round=100,  # Number of boosting rounds
+    evals=[(dtrain, "train"), (dtest, "validation")],  # Evaluation set
     early_stopping_rounds=10,
     verbose_eval=10,
     evals_result=evals_result,
@@ -119,3 +94,5 @@ print("Evaluation results saved")
 # %% Save the model to a file
 model.save_model("./data/xgb_regressor_{}.json".format(model_tag))
 print("Model saved")
+
+# %%
