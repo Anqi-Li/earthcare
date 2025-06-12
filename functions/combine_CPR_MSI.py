@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import griddata
 from scipy.spatial.distance import cdist
-from functions.search_orbit_files import (
+from search_orbit_files import (
     get_common_orbits,
     get_orbit_files,
 )

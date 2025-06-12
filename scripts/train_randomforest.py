@@ -1,10 +1,10 @@
 # %% import libraries
 from sklearn.ensemble import RandomForestRegressor
-from functions.combine_CPR_MSI import (
+from combine_CPR_MSI import (
     get_cpr_msi_from_orbits,
     package_ml_xy,
 )
-from functions.search_orbit_files import (
+from search_orbit_files import (
     get_common_orbits,
 )
 import joblib

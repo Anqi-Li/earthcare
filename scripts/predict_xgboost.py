@@ -1,5 +1,5 @@
 # %%
-from functions.combine_CPR_MSI import (
+from combine_CPR_MSI import (
     get_cpr_msi_from_orbits,
     package_ml_xy,
 )

@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
 
-from functions.search_orbit_files import (
+from search_orbit_files import (
     get_common_orbits,
     get_orbit_files,
     get_all_orbit_numbers_per_instrument,

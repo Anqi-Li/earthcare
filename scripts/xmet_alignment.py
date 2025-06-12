@@ -1,9 +1,9 @@
 # %%
-from functions.search_orbit_files import (
+from search_orbit_files import (
     get_common_orbits,
     get_orbit_files,
 )
-from functions.combine_CPR_MSI import read_xmet, align_xmet_horizontal_grid, read_cpr
+from combine_CPR_MSI import read_xmet, align_xmet_horizontal_grid, read_cpr
 import os
 
 REWRITE = False  # Set to True to overwrite existing files
