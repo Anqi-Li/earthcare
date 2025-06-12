@@ -14,7 +14,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # %% select orbit numbers
-model_tag = "ten_days_three_channels"
+model_tag = "ten_days_channel6_one_neuron"
 common_orbits = get_common_orbits(
     ["CPR", "MSI", "XMET_aligned"],
     date_range=["2025/02/01", "2025/02/10"],
@@ -29,7 +29,7 @@ start = datetime.now()
 orbit_numbers = common_orbits
 xds, ds_xmet = get_cpr_msi_from_orbits(
     orbit_numbers=orbit_numbers,
-    msi_band=[4, 5, 6],
+    msi_band=6,
     get_xmet=True,
     filter_ground=True,
     add_dBZ=True,
@@ -41,7 +41,7 @@ print("Load training data", datetime.now() - start)
 # %%
 # Initialize the neural network model
 nn_model = MLPRegressor(
-    hidden_layer_sizes=(10,),  # One hidden layer with 10 neurons
+    hidden_layer_sizes=(1,),  # One hidden layer with 10 neurons
     activation="relu",  # Activation function
     solver="adam",  # Optimizer
     max_iter=500,  # Maximum number of iterations
