@@ -20,15 +20,16 @@ def read_xmet(
     aligned: bool = False,
     set_coords: bool = True,
     set_xindex: bool = True,
+    group: str = "ScienceData",
 ) -> xr.Dataset:
     """
     Read the XMET file corresponding to the given orbit number.
     """
-    group = "ScienceData"
+
     if aligned:
         base_path = base_path.replace("AUX_MET_1D", "AUX_MET_1D_aligned_CPR")
         group = None
-    
+
     if file_path is not None:
         # If orbit_file is provided, use it directly
         file_paths = [file_path]
@@ -36,7 +37,7 @@ def read_xmet(
         # If orbit_number is provided, search for the corresponding file
         if orbit_number is None:
             raise ValueError("Either orbit_number or orbit_file must be provided.")
-        
+
         # Get the file paths for the given orbit number
         file_paths = get_orbit_files(orbit_numbers=orbit_number, base_path=base_path)
     if len(file_paths) == 0:
@@ -44,7 +45,7 @@ def read_xmet(
 
     elif len(file_paths) >= 1:
         # raise FileExistsError(f"Multiple XMET files found for orbit number {orbit_number}")
-        
+
         file_paths.sort()
         file_path = file_paths[-1]  # Get the latest file
         ds = xr.open_dataset(
@@ -109,7 +110,7 @@ def read_msi(orbit_number, band=[4, 5, 6]):
     elif len(full_paths) == 1:
         full_path = full_paths[0]
         # Open the HDF5 file and read a specific group into xarray
-        
+
     xds = xr.open_dataset(full_path, group="ScienceData", chunks="auto")
     xds = xds.set_coords(["latitude", "longitude", "time"])
     xds = xds.isel(
@@ -262,7 +263,7 @@ def xr_vectorized_height_interpolation(
         output_core_dims=[[new_height_dim]],
         vectorize=True,
         dask="parallelized",
-        output_dtypes=[ds[variable_name].dtype],
+        # output_dtypes=[ds[variable_name].dtype],
     )
     da_interpolated[new_height_dim] = height_grid
     da_interpolated.attrs = ds[variable_name].attrs
@@ -313,7 +314,6 @@ def package_ml_xy(
     )
 
     # Replace the underground temperature with a constant value
-
     if ground_temperature_replacement == True:
         da_T_height = da_T_height.interpolate_na(dim="height_grid", method="nearest", fill_value="extrapolate")
     elif type(ground_temperature_replacement) in (float, int):
@@ -327,19 +327,18 @@ def package_ml_xy(
         np.logical_and(~da_dBZ_height.pipe(np.isinf), da_dBZ_height > lowest_dBZ_threshold),
         low_dBZ_replacement,
     )
-    # marke clearsky profiles
+    # mask clearsky profiles
     mask_clearsky = (da_dBZ_height < lowest_dBZ_threshold).all(dim="height_grid").compute()
     # filter out extreme MSI values
     mask_bad_msi = np.logical_or((xds["pixel_values"] > 500), (xds["pixel_values"] < 150)).compute()
     if len(mask_bad_msi.shape) > 1:
-        # raise NotImplementedError("mask_bad_msi for multiple bands is not implemented yet")
         mask_bad_msi = mask_bad_msi.any(dim="band").compute()
 
     mask = np.logical_and(~mask_clearsky, ~mask_bad_msi)
 
     # Define the features and target variable
     X = np.stack([da_dBZ_height, da_T_height], axis=2)
-    X = X[mask]  # remove profiles that are clearsky
+    X = X[mask]  # remove profiles that are not suitable for ML
 
     y = xds["pixel_values"].T
     y = y[mask]
