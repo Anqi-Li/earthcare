@@ -47,7 +47,7 @@ xds, ds_xmet = get_cpr_msi_from_orbits(
     orbit_numbers=orbit_numbers,
     get_xmet=True,
     msi_band=[4, 5, 6],
-    filter_ground=True,
+    remove_underground=True,
     add_dBZ=True,
 )
 # %

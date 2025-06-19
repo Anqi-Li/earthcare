@@ -59,7 +59,7 @@ for i, orbit_number in enumerate(common_orbits_test):
         orbit_numbers=orbit_number,
         get_xmet=True,
         msi_band=[4, 5, 6],
-        filter_ground=True,
+        remove_underground=True,
         add_dBZ=True,
     )
     # %
@@ -77,7 +77,9 @@ for i, orbit_number in enumerate(common_orbits_test):
     # rmse = np.sqrt(mean_squared_error(y_test, y_pred))
     # print(f"Root Mean Squared Error: {rmse}")
 
-    y_test.to_dataset(name="y_true").assign(y_pred=(("nray", "band"), y_pred)).reset_index("nray").to_netcdf(
+    y_test.to_dataset(name="y_true").assign(
+        y_pred=(("nray", "band"), y_pred)
+    ).reset_index("nray").to_netcdf(
         filename,
     )
 

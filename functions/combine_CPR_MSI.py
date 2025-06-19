@@ -160,7 +160,7 @@ def get_cpr_msi_from_orbits(
     msi_band: list[int] | int = [4, 5, 6],
     get_xmet: bool = False,
     add_dBZ: bool = True,
-    filter_ground: bool = True,
+    remove_underground: bool = True,
 ) -> xr.Dataset:
     """
     Combine CPR and MSI data from the given orbit number list.
@@ -168,7 +168,7 @@ def get_cpr_msi_from_orbits(
     msi_band: list of MSI bands to read (default: [4, 5, 6])
     get_xmet: whether to read the XMET dataset (default: False)
     add_dBZ: add dBZ variable to the dataset from radarReflectivityFactor
-    filter_ground: remove the ground clutter from radarReflectivityFactor and dBZ
+    remove_underground: remove the ground clutter from radarReflectivityFactor and dBZ
     """
     if isinstance(orbit_numbers, str):
         orbit_numbers = [orbit_numbers]
@@ -196,7 +196,7 @@ def get_cpr_msi_from_orbits(
         xds_combined["dBZ"] = xds_combined["radarReflectivityFactor"].pipe(lambda x: 10 * np.log10(x))  # Convert to dBZ
         xds_combined["dBZ"].attrs = {"long_name": "dBZ", "units": "dBZ"}
 
-    if filter_ground:
+    if remove_underground:
         # Remove the ground clutter
         cond_ground = xds_combined["nbin"] < xds_combined["surfaceBinNumber"] - 5
         if add_dBZ:
@@ -371,7 +371,7 @@ if __name__ == "__main__":
             orbit_numbers=orbit_numbers,
             get_xmet=True,
             msi_band=6,
-            filter_ground=True,
+            remove_underground=True,
             add_dBZ=True,
         )
         # %

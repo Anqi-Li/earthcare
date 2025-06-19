@@ -39,7 +39,7 @@ def save_training_dataset(orbit_number):
         orbit_numbers=orbit_number,
         msi_band=[4, 5, 6],
         get_xmet=True,
-        filter_ground=True,
+        remove_underground=True,
         add_dBZ=True,
     )
 
@@ -67,7 +67,10 @@ def save_training_dataset(orbit_number):
         (
             y_train.to_dataset()
             .assign(
-                x=(("nray", "height_grid", "param"), X_train.reshape(-1, len(height_grid), 2)),
+                x=(
+                    ("nray", "height_grid", "param"),
+                    X_train.reshape(-1, len(height_grid), 2),
+                ),
             )
             .assign_coords(
                 param=["dBZ", "T"],
